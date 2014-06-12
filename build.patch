@@ -1,0 +1,19 @@
+commit 7bd0b2037efecd297c0200a1696b690afa01e87c
+Author: Antonio M. Amaya <amac@tid.es>
+Date:   Wed Jun 11 23:55:09 2014 +0200
+
+    don't push
+
+diff --git a/core/main.mk b/core/main.mk
+index ca17a19..c02d03d 100644
+--- a/core/main.mk
++++ b/core/main.mk
+@@ -247,7 +247,7 @@ enable_target_debugging := true
+ tags_to_install :=
+ ifneq (,$(user_variant))
+   # Target is secure in user builds.
+-  ADDITIONAL_DEFAULT_PROPERTIES += ro.secure=1
++  ADDITIONAL_DEFAULT_PROPERTIES += ro.secure=0
+ 
+   ifeq ($(user_variant),userdebug)
+     # Pick up some extra useful tools

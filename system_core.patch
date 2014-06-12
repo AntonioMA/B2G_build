@@ -1,0 +1,19 @@
+commit be2ff9a5136d6de2648a6d7fef7781f7ed2962f7
+Author: Antonio M. Amaya <amac@tid.es>
+Date:   Thu Jun 12 11:54:34 2014 +0200
+
+    don't push
+
+diff --git a/adb/Android.mk b/adb/Android.mk
+index a803978..afbba36 100644
+--- a/adb/Android.mk
++++ b/adb/Android.mk
+@@ -122,7 +122,7 @@ LOCAL_SRC_FILES := \
+ LOCAL_CFLAGS := -O2 -g -DADB_HOST=0 -Wall -Wno-unused-parameter
+ LOCAL_CFLAGS += -D_XOPEN_SOURCE -D_GNU_SOURCE
+ 
+-ifneq (,$(filter userdebug eng,$(TARGET_BUILD_VARIANT)))
++ifneq (,$(filter userdebug eng user,$(TARGET_BUILD_VARIANT)))
+ LOCAL_CFLAGS += -DALLOW_ADBD_ROOT=1
+ endif
+ 
