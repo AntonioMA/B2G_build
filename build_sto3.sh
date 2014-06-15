@@ -97,7 +97,7 @@ checkIfApply "$PATCHES"
 
 apply "$PATCHES"
 
-trap "revert $PATCHES" INT QUIT
+trap "revert \"$PATCHES\"" INT QUIT
 ./build.sh $*
 ERR_CODE=$?
 
