@@ -56,14 +56,14 @@ diff --git a/configure.in b/configure.in
 diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
 --- a/mobile/android/confvars.sh
 +++ b/mobile/android/confvars.sh
-@@ -59,13 +59,16 @@ MOZ_PAY=1
- MOZ_SERVICES_HEALTHREPORT=1
- 
+@@ -61,16 +61,19 @@ MOZ_SERVICES_HEALTHREPORT=1
  # Enable FirefoxAccounts
  MOZ_SERVICES_FXACCOUNTS=1
  
- # Enable Wifi-AP/cell tower data reporting
+ # Wifi-AP/cell tower data reporting is enabled on non-release builds.
+ if test ! "$RELEASE_BUILD"; then
  MOZ_DATA_REPORTING=1
+ fi
  
 +# Enable the production cert for verifying signed packaged apps.
 +MOZ_B2G_CERTDATA=1
@@ -73,6 +73,9 @@ diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
  
  # Enable second screen and casting support for external devices.
  MOZ_DEVICES=1
+ 
+ # Enable second screen using native Android libraries
+ MOZ_NATIVE_DEVICES=
 diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
 --- a/security/apps/AppTrustDomain.cpp
 +++ b/security/apps/AppTrustDomain.cpp
