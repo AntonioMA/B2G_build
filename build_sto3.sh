@@ -76,7 +76,7 @@ function apply() {
     pushd $DIR || abort "Er WTH, this should not happen! $DIR does not exist!"
     if [ -d .git ]
     then
-      git apply $PATCH || abort "Error applying $PATCH on $DIR. This should NOT happen"
+      git apply --index $PATCH || abort "Error applying $PATCH on $DIR. This should NOT happen"
       git commit -a -m "Don't push"|| abort "Error commiting on $DIR. This should NOT happen"
     else
       echo "***** .git does not exist on $DIR! ****"
