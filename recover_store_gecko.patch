@@ -18,10 +18,14 @@ Subject: [PATCH] 2.0 recover store patch
  create mode 100644 security/build/b2g-certdata.txt
 
 diff --git a/b2g/confvars.sh b/b2g/confvars.sh
-index 1375bfe..caeecdb 100644
 --- a/b2g/confvars.sh
 +++ b/b2g/confvars.sh
-@@ -51,6 +51,7 @@ MOZ_EXTENSION_MANAGER=1
+@@ -46,16 +46,17 @@ fi
+ 
+ MOZ_MEDIA_NAVIGATOR=1
+ 
+ MOZ_APP_ID={3c2e2abc-06d4-11e1-ac3b-374f68613e61}
+ MOZ_EXTENSION_MANAGER=1
  
  MOZ_TIME_MANAGER=1
  
@@ -29,11 +33,20 @@ index 1375bfe..caeecdb 100644
  MOZ_PAY=1
  MOZ_TOOLKIT_SEARCH=
  MOZ_PLACES=
+ MOZ_B2G=1
+ 
+ if test "$OS_TARGET" = "Android"; then
+ MOZ_NUWA_PROCESS=1
+ fi
 diff --git a/configure.in b/configure.in
-index 9fc630b..54c04e9 100644
 --- a/configure.in
 +++ b/configure.in
-@@ -7549,6 +7549,15 @@ fi
+@@ -7545,16 +7545,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
+     MOZ_B2G_CAMERA=1,
+     MOZ_B2G_CAMERA= )
+ if test -n "$MOZ_B2G_CAMERA"; then
+    AC_DEFINE(MOZ_B2G_CAMERA)
+ fi
  AC_SUBST(MOZ_B2G_CAMERA)
  
  dnl ========================================================
@@ -49,11 +62,20 @@ index 9fc630b..54c04e9 100644
  dnl = Enable Support for Payment API
  dnl ========================================================
  if test -n "$MOZ_PAY"; then
+     AC_DEFINE(MOZ_PAY)
+ fi
+ AC_SUBST(MOZ_PAY)
+ 
+ dnl ========================================================
 diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
-index 3d26d08..f21b4b0 100644
 --- a/mobile/android/confvars.sh
 +++ b/mobile/android/confvars.sh
-@@ -66,6 +66,9 @@ if test ! "$RELEASE_BUILD"; then
+@@ -61,16 +61,19 @@ MOZ_SERVICES_HEALTHREPORT=1
+ # Enable FirefoxAccounts
+ MOZ_SERVICES_FXACCOUNTS=1
+ 
+ # Wifi-AP/cell tower data reporting is enabled on non-release builds.
+ if test ! "$RELEASE_BUILD"; then
  MOZ_DATA_REPORTING=1
  fi
  
@@ -63,11 +85,20 @@ index 3d26d08..f21b4b0 100644
  # Enable runtime locale switching.
  MOZ_LOCALE_SWITCHER=1
  
+ # Enable the "synthetic APKs" implementation of Open Web Apps.
+ MOZ_ANDROID_SYNTHAPKS=1
+ 
+ # Enable second screen and casting support for external devices.
+ MOZ_DEVICES=1
 diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
-index 642f3f3..4a4fd1e 100644
 --- a/security/apps/AppTrustDomain.cpp
 +++ b/security/apps/AppTrustDomain.cpp
-@@ -149,6 +149,20 @@ AppTrustDomain::GetCertTrust(EndEntityOrCA endEntityOrCA,
+@@ -144,16 +144,30 @@ AppTrustDomain::GetCertTrust(EndEntityOr
+     PRUint32 relevantTrustBit = endEntityOrCA == EndEntityOrCA::MustBeCA
+                               ? CERTDB_TRUSTED_CA
+                               : CERTDB_TRUSTED;
+     if (((flags & (relevantTrustBit | CERTDB_TERMINAL_RECORD)))
+             == CERTDB_TERMINAL_RECORD) {
        *trustLevel = TrustLevel::ActivelyDistrusted;
        return SECSuccess;
      }
@@ -88,11 +119,20 @@ index 642f3f3..4a4fd1e 100644
    }
  
    // mTrustedRoot is the only trust anchor for this validation.
+   if (CERT_CompareCerts(mTrustedRoot.get(), candidateCert.get())) {
+     *trustLevel = TrustLevel::TrustAnchor;
+     return SECSuccess;
+   }
+ 
 diff --git a/security/build/Makefile.in b/security/build/Makefile.in
-index 3109cfa..bcf88f9 100644
 --- a/security/build/Makefile.in
 +++ b/security/build/Makefile.in
-@@ -253,6 +253,10 @@ DEFAULT_GMAKE_FLAGS += MAKE_OBJDIR='$$(INSTALL) -D $$(OBJDIR)'
+@@ -248,16 +248,20 @@ DEFAULT_GMAKE_FLAGS += MODULE_INCLUDES='
+ 
+ # Work around NSS's MAKE_OBJDIR being racy. See bug #836220
+ DEFAULT_GMAKE_FLAGS += MAKE_OBJDIR='$$(INSTALL) -D $$(OBJDIR)'
+ 
+ # Work around NSS adding IMPORT_LIBRARY to TARGETS with no rule for
  # it, creating race conditions. See bug #836220
  DEFAULT_GMAKE_FLAGS += TARGETS='$$(LIBRARY) $$(SHARED_LIBRARY) $$(PROGRAM)'
  
@@ -103,35 +143,36 @@ index 3109cfa..bcf88f9 100644
  NSS_SRCDIR = $(topsrcdir)
  
  NSS_DIRS =
+ ifndef MOZ_FOLD_LIBS
+ NSS_DIRS += nss/lib
+ else
+ ifndef NSS_DISABLE_DBM
+ NSS_DIRS += nss/lib/dbm
 diff --git a/security/build/b2g-app-root-cert.der b/security/build/b2g-app-root-cert.der
 new file mode 100644
 index 0000000000000000000000000000000000000000..85c2fed92a963b2ff51ee92165d6ed59fa70aeff
 GIT binary patch
 literal 1177
-zcmXqLVwq~t#9X_8nTe5!iILHOmyJ`a&7<u*FC!xlD}zB}uOYVqCmVAp3!5-gXt1G-
+zc$_n6Vwq~t#9X_8nTe5!iILHOmyJ`a&7<u*FC!xlD}zB}uOYVqCmVAp3!5-gXt1G-
 zffR_tB`oZlUzM4Ylc?aFUsRA^lvt9PpJ!-pU<#7u7S@Bw`X&}-r<N4tBqpaS1Qg|`
 zlqQ1|Dg<Yy=Vj)lD+H$&m1QQU8mb$pf;2J<%N6D4m*^%Z>K4Ei>*gZNFpv}HH8eIb
-zGBP(XFf=hWixTHG0&z{D+(GBwCPoG1AZ27_U~XdMWiV)B<X~!IWMo)gl-X@}V$$b3
-zIcaHp2B(`JMRPW`wLYA;)wAe+PO*=Vp70-$Klv>llSAfuC1tT^{yQ}9Y<Wh8`RexS
-z09p1bzSzx%zANSH{>N<Ht{lAfwn|6iK7j`%>R-anGUZ+RX0p}ztM|1DLEW6IwFNWg
-zCa|w!2w#4|vueMg!_~UAU%rKevf90ES;x6%!EXb<7k&;rviBXie}$<mzBc{RS|))W
-ztB`%2IWEfzw^!vYzx`EBuUlfPWcU16YZ>nx&Ww-PYoWsQ<c#V*+rw)kW3`tx7_`|$
-zWav8dPXDl|V9G-0_jdxAW?C5imA{y=?8VlejS`l@9{Y1IJUaWq&GN-Rk?Nv{4;KAr
-zVq{+2_}`%Mj{y%b0murouo^HkGX6K<1M&EQEEX1E%49PT1MyWsd>#WXHV$nzMpjmK
-zW@dxNB_Ii9mc}^-jWZWEPF~VDVX&nEU^E-Zf?UbRBE}+;T>t68B_qWd|F<cpdf9*2
-z`|9}89OM)N%yhsM!pLBJ`oV&Vp4F)pc8mJ&f0D0eda~1gm!9ZWR$arFE{<%=rp)7B
-zU8gp0w#T-qGi>CvzqwlVmoB`}I<ael9?zq#w&_(r->+qPu{+PJ?7^`^=CS5~PKF0O
-z<Yqt6xU^=P+-fD2{{9a#7N4>ndzVf5c_dI~(z~_3oGk?cDZ4)2ewZ1%)3Epo$G(TF
-zVug$T)vkR}`g(!!3iGI^ofY4oEL6#B{LWz&#$l)(y0ou!lluOvCP)70-rjTT%g2tO
-zZkNT6&OMP|v{;=dX7aappVdus7e=hIy3ldz%`w#tX(89!{Ywr+F5g-Dqi6NIdP~j2
-dyW_t)oKBwC6Wwo?v0C11mg-`sge`VDw*irXxb*-4
-
-literal 0
-HcmV?d00001
+zGBP(XFf=hWixTHG0&z{D+(GBwCPoG1AZ27_U~XdMWdMqEFf}nUGAu93?6x~G>GPeO
+zv@|}0)6I{fIUCzrAI{tAS#&?A*vCgt_>ah+{1%VNA#=Twve+~K9h!HxJR`$=b$fMy
+zEPEAS>}EsXmGX7}W43Nr4qkg(rK545z=IO?FJWhy@-BTd*=qdN``Uz{ZqC)(f*ErY
+z*jF)xFTdbfwcpU;YTeo|-$FuJ?cTPm<6N`gw}IaaKL;M!`;Oed!c-Ptn|^66lR%GE
+z$iB`Tmt}?9tMZoL{;H<eEwNRyd;Y7njCT%a#z*Y6P+@v<Ms=U<;kA*m+RGXY+H4{+
+zbRBx9e^^v7Wuf!?I{{2HEsXxkU(8tcVr$Pv3Cm!Q{kaz&o&Dfu`Qo2Qb<x8Ii~ch)
+zGB0lYZ_xP1fCm_$vcfE^2F#3%{|)#+JboaHg$0;0*$l)$d{q#i$AF8CLz|6}m6e^D
+z*`RR=NJ5#VagIUb%!Q4Umo!coY-s=(%?7d{SMsrlv4|wse|m7qNO8vhZOW-$_8<1X
+zI=(aqEz>cB5{B{V2Ma2CR;O0jE$YAjNxqut$xi!SdZJrdbq!y-II=C9GLL(8o!Y$F
+z9^0nQu#waL=4#bny6{5l#I6Z?Jdd{8rdR!Zzn102?mVxu2geSX$D02+86NPEoBcrJ
+z(wb><tCdvx`#;E7e9C(4T{h+CkwBSA@7DTqwiF1Y?D}~7VP@=3!{RF(`yQ@}6)yT$
+zyY@xt>jlOu%%h%mR(yZ5P$jSNJBL*mhoN@p(!SD7>ie&n9QmVrd(W*eA3K7&T^2t&
+z_e6ftVs)OF$=}|6RyWOE7_rLgLdU5$$5c0@g<Nm<FF6pod}ry8p4IQ_Ej17Cj{oX#
+ZI(c4CbiY}~YI(0&s*9Zxw%F<11^|(Pxb*-4
 
 diff --git a/security/build/b2g-certdata.mk b/security/build/b2g-certdata.mk
 new file mode 100644
-index 0000000..e79a8ad
 --- /dev/null
 +++ b/security/build/b2g-certdata.mk
 @@ -0,0 +1,35 @@
@@ -172,7 +213,6 @@ index 0000000..e79a8ad
 +DEFAULT_GMAKE_FLAGS += NSS_CERTDATA_TXT='$(CURDIR)/combined-certdata.txt'
 diff --git a/security/build/b2g-certdata.txt b/security/build/b2g-certdata.txt
 new file mode 100644
-index 0000000..4a510b1
 --- /dev/null
 +++ b/security/build/b2g-certdata.txt
 @@ -0,0 +1,554 @@
@@ -730,6 +770,3 @@ index 0000000..4a510b1
 +CKA_TRUST_EMAIL_PROTECTION CK_TRUST CKT_NSS_TRUSTED_DELEGATOR
 +CKA_TRUST_CODE_SIGNING CK_TRUST CKT_NSS_TRUSTED_DELEGATOR
 +CKA_TRUST_STEP_UP_APPROVED CK_BBOOL CK_FALSE
--- 
-1.7.9.5
-
