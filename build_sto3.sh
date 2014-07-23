@@ -19,6 +19,9 @@ if [ $DEVICE_NAME = flame ]
 then
   # We want adb root!
   PATCHES="$BUILD_PATCH $SYSTEM_CORE_PATCH $GECKO_PATCH"
+  # And UX guys like their font to be present for some reason
+  mkdir -p out/target/product/flame/system/fonts/
+  cp backup-flame/system/fonts/Fira*OT*.otf out/target/product/flame/system/fonts/
 else
   # Only the store
   PATCHES="$GECKO_PATCH"
