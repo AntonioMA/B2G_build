@@ -1,12 +1,12 @@
 # HG changeset patch
-# Parent 64493a6326a49dc21a82e169c3d8344bb6c54b0d
+# Parent d2653de5eb4dd659a4d166a95d8c1a0edd1f88f4
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
 
 diff --git a/b2g/confvars.sh b/b2g/confvars.sh
 --- a/b2g/confvars.sh
 +++ b/b2g/confvars.sh
-@@ -46,16 +46,17 @@ fi
+@@ -47,16 +47,17 @@ fi
  
  MOZ_MEDIA_NAVIGATOR=1
  
@@ -27,7 +27,7 @@ diff --git a/b2g/confvars.sh b/b2g/confvars.sh
 diff --git a/configure.in b/configure.in
 --- a/configure.in
 +++ b/configure.in
-@@ -7553,16 +7553,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
+@@ -7504,16 +7504,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
      MOZ_B2G_CAMERA=1,
      MOZ_B2G_CAMERA= )
  if test -n "$MOZ_B2G_CAMERA"; then
@@ -56,9 +56,9 @@ diff --git a/configure.in b/configure.in
 diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
 --- a/mobile/android/confvars.sh
 +++ b/mobile/android/confvars.sh
-@@ -61,16 +61,19 @@ MOZ_SERVICES_HEALTHREPORT=1
- # Enable FirefoxAccounts
- MOZ_SERVICES_FXACCOUNTS=1
+@@ -58,16 +58,19 @@ MOZ_PAY=1
+ # Enable UI for healthreporter
+ MOZ_SERVICES_HEALTHREPORT=1
  
  # Wifi-AP/cell tower data reporting is enabled on non-release builds.
  if test ! "$RELEASE_BUILD"; then
@@ -79,7 +79,7 @@ diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
 diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
 --- a/security/apps/AppTrustDomain.cpp
 +++ b/security/apps/AppTrustDomain.cpp
-@@ -144,16 +144,30 @@ AppTrustDomain::GetCertTrust(EndEntityOr
+@@ -171,16 +171,30 @@ AppTrustDomain::GetCertTrust(EndEntityOr
      PRUint32 relevantTrustBit = endEntityOrCA == EndEntityOrCA::MustBeCA
                                ? CERTDB_TRUSTED_CA
                                : CERTDB_TRUSTED;
