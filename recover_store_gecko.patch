@@ -4,14 +4,10 @@
 Recover TID store
 
 diff --git a/b2g/confvars.sh b/b2g/confvars.sh
+index 98ef528..310bc93 100644
 --- a/b2g/confvars.sh
 +++ b/b2g/confvars.sh
-@@ -47,16 +47,17 @@ fi
- 
- MOZ_MEDIA_NAVIGATOR=1
- 
- MOZ_APP_ID={3c2e2abc-06d4-11e1-ac3b-374f68613e61}
- MOZ_EXTENSION_MANAGER=1
+@@ -52,6 +52,7 @@ MOZ_EXTENSION_MANAGER=1
  
  MOZ_TIME_MANAGER=1
  
@@ -19,11 +15,6 @@ diff --git a/b2g/confvars.sh b/b2g/confvars.sh
  MOZ_PAY=1
  MOZ_TOOLKIT_SEARCH=
  MOZ_PLACES=
- MOZ_B2G=1
- 
- if test "$OS_TARGET" = "Android"; then
- MOZ_NUWA_PROCESS=1
- fi
 diff --git a/configure.in b/configure.in
 --- a/configure.in
 +++ b/configure.in
