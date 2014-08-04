@@ -99,7 +99,7 @@ diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
 +    // Gecko implemented nsICertOverrideService.
 +    if (flags & CERTDB_TRUSTED_CA) {
 +      trustLevel = TrustLevel::TrustAnchor;
-+      return SECSuccess;
++      return Success;
 +    }
 +#endif
    }
