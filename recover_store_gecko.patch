@@ -1,5 +1,5 @@
 # HG changeset patch
-# Parent b17cad2d1e5e6bcb5a10096d51d07ea8a79b6921
+# Parent 7f81be7db52884f813fd2d6ff2ae4fd0d8aeb452
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
 
@@ -23,11 +23,11 @@ diff --git a/b2g/confvars.sh b/b2g/confvars.sh
  
  if test "$OS_TARGET" = "Android"; then
  MOZ_NUWA_PROCESS=1
- fi
+ MOZ_B2G_LOADER=1
 diff --git a/configure.in b/configure.in
 --- a/configure.in
 +++ b/configure.in
-@@ -7464,16 +7464,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
+@@ -7452,16 +7452,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
      MOZ_B2G_CAMERA=1,
      MOZ_B2G_CAMERA= )
  if test -n "$MOZ_B2G_CAMERA"; then
@@ -79,14 +79,14 @@ diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
 diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
 --- a/security/apps/AppTrustDomain.cpp
 +++ b/security/apps/AppTrustDomain.cpp
-@@ -177,16 +177,30 @@ AppTrustDomain::GetCertTrust(EndEntityOr
+@@ -182,16 +182,30 @@ AppTrustDomain::GetCertTrust(EndEntityOr
      PRUint32 relevantTrustBit = endEntityOrCA == EndEntityOrCA::MustBeCA
                                ? CERTDB_TRUSTED_CA
                                : CERTDB_TRUSTED;
      if (((flags & (relevantTrustBit | CERTDB_TERMINAL_RECORD)))
              == CERTDB_TERMINAL_RECORD) {
-       *trustLevel = TrustLevel::ActivelyDistrusted;
-       return SECSuccess;
+       trustLevel = TrustLevel::ActivelyDistrusted;
+       return Success;
      }
 +
 +#ifdef MOZ_B2G_CERTDATA
@@ -98,7 +98,7 @@ diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
 +    // needed to consider end-entity certs to be their own trust anchors since
 +    // Gecko implemented nsICertOverrideService.
 +    if (flags & CERTDB_TRUSTED_CA) {
-+      *trustLevel = TrustLevel::TrustAnchor;
++      trustLevel = TrustLevel::TrustAnchor;
 +      return SECSuccess;
 +    }
 +#endif
@@ -106,8 +106,8 @@ diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
  
    // mTrustedRoot is the only trust anchor for this validation.
    if (CERT_CompareCerts(mTrustedRoot.get(), candidateCert.get())) {
-     *trustLevel = TrustLevel::TrustAnchor;
-     return SECSuccess;
+     trustLevel = TrustLevel::TrustAnchor;
+     return Success;
    }
  
 diff --git a/security/build/Makefile.in b/security/build/Makefile.in
