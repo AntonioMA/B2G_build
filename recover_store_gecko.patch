@@ -1,5 +1,5 @@
 # HG changeset patch
-# Parent 7f81be7db52884f813fd2d6ff2ae4fd0d8aeb452
+# Parent dfd2188b8c619562e40119e3f3a14e06251e891a
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
 
@@ -24,95 +24,9 @@ diff --git a/b2g/confvars.sh b/b2g/confvars.sh
  if test "$OS_TARGET" = "Android"; then
  MOZ_NUWA_PROCESS=1
  MOZ_B2G_LOADER=1
-diff --git a/configure.in b/configure.in
---- a/configure.in
-+++ b/configure.in
-@@ -7452,16 +7452,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
-     MOZ_B2G_CAMERA=1,
-     MOZ_B2G_CAMERA= )
- if test -n "$MOZ_B2G_CAMERA"; then
-    AC_DEFINE(MOZ_B2G_CAMERA)
- fi
- AC_SUBST(MOZ_B2G_CAMERA)
- 
- dnl ========================================================
-+dnl = Enable Support B2G-specific changes to the NSS
-+dnl = certificate trust database.
-+dnl ========================================================
-+if test -n "$MOZ_B2G_CERTDATA"; then
-+    AC_DEFINE(MOZ_B2G_CERTDATA)
-+fi
-+AC_SUBST(MOZ_B2G_CERTDATA)
-+
-+dnl ========================================================
- dnl = Enable Support for Payment API
- dnl ========================================================
- if test -n "$MOZ_PAY"; then
-     AC_DEFINE(MOZ_PAY)
- fi
- AC_SUBST(MOZ_PAY)
- 
- dnl ========================================================
-diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
---- a/mobile/android/confvars.sh
-+++ b/mobile/android/confvars.sh
-@@ -62,16 +62,19 @@ MOZ_PAY=1
- # Enable UI for healthreporter
- MOZ_SERVICES_HEALTHREPORT=1
- 
- # Wifi-AP/cell tower data reporting is enabled on non-release builds.
- if test ! "$RELEASE_BUILD"; then
- MOZ_DATA_REPORTING=1
- fi
- 
-+# Enable the production cert for verifying signed packaged apps.
-+MOZ_B2G_CERTDATA=1
-+
- # Enable runtime locale switching.
- MOZ_LOCALE_SWITCHER=1
- 
- # Enable second screen and casting support for external devices.
- MOZ_DEVICES=1
- 
- # Enable second screen using native Android libraries
- MOZ_NATIVE_DEVICES=
-diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
---- a/security/apps/AppTrustDomain.cpp
-+++ b/security/apps/AppTrustDomain.cpp
-@@ -182,16 +182,30 @@ AppTrustDomain::GetCertTrust(EndEntityOr
-     PRUint32 relevantTrustBit = endEntityOrCA == EndEntityOrCA::MustBeCA
-                               ? CERTDB_TRUSTED_CA
-                               : CERTDB_TRUSTED;
-     if (((flags & (relevantTrustBit | CERTDB_TERMINAL_RECORD)))
-             == CERTDB_TERMINAL_RECORD) {
-       trustLevel = TrustLevel::ActivelyDistrusted;
-       return Success;
-     }
-+
-+#ifdef MOZ_B2G_CERTDATA
-+    // XXX(Bug 972201): We have to allow the old way of supporting additional
-+    // roots until we fix bug 889744. Remove this along with the rest of the
-+    // MOZ_B2G_CERTDATA stuff.
-+
-+    // For TRUST, we only use the CERTDB_TRUSTED_CA bit, because Gecko hasn't
-+    // needed to consider end-entity certs to be their own trust anchors since
-+    // Gecko implemented nsICertOverrideService.
-+    if (flags & CERTDB_TRUSTED_CA) {
-+      trustLevel = TrustLevel::TrustAnchor;
-+      return Success;
-+    }
-+#endif
-   }
- 
-   // mTrustedRoot is the only trust anchor for this validation.
-   if (CERT_CompareCerts(mTrustedRoot.get(), candidateCert.get())) {
-     trustLevel = TrustLevel::TrustAnchor;
-     return Success;
-   }
- 
-diff --git a/security/build/Makefile.in b/security/build/Makefile.in
---- a/security/build/Makefile.in
-+++ b/security/build/Makefile.in
+diff --git a/config/external/nss/Makefile.in b/config/external/nss/Makefile.in
+--- a/config/external/nss/Makefile.in
++++ b/config/external/nss/Makefile.in
 @@ -248,16 +248,20 @@ DEFAULT_GMAKE_FLAGS += MODULE_INCLUDES='
  
  # Work around NSS's MAKE_OBJDIR being racy. See bug #836220
@@ -134,7 +48,7 @@ diff --git a/security/build/Makefile.in b/security/build/Makefile.in
  else
  ifndef NSS_DISABLE_DBM
  NSS_DIRS += nss/lib/dbm
-diff --git a/security/build/b2g-app-root-cert.der b/security/build/b2g-app-root-cert.der
+diff --git a/config/external/nss/b2g-app-root-cert.der b/config/external/nss/b2g-app-root-cert.der
 new file mode 100644
 index 0000000000000000000000000000000000000000..85c2fed92a963b2ff51ee92165d6ed59fa70aeff
 GIT binary patch
@@ -157,10 +71,10 @@ zyY@xt>jlOu%%h%mR(yZ5P$jSNJBL*mhoN@p(!SD7>ie&n9QmVrd(W*eA3K7&T^2t&
 z_e6ftVs)OF$=}|6RyWOE7_rLgLdU5$$5c0@g<Nm<FF6pod}ry8p4IQ_Ej17Cj{oX#
 ZI(c4CbiY}~YI(0&s*9Zxw%F<11^|(Pxb*-4
 
-diff --git a/security/build/b2g-certdata.mk b/security/build/b2g-certdata.mk
+diff --git a/config/external/nss/b2g-certdata.mk b/config/external/nss/b2g-certdata.mk
 new file mode 100644
 --- /dev/null
-+++ b/security/build/b2g-certdata.mk
++++ b/config/external/nss/b2g-certdata.mk
 @@ -0,0 +1,35 @@
 +# This Source Code Form is subject to the terms of the Mozilla Public
 +# License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -187,7 +101,7 @@ new file mode 100644
 +# we do not build addbuiltin as part of a Gecko build.
 +
 +# Distrust all existing builtin CAs for code-signing
-+hacked-certdata.txt : $(srcdir)/../nss/lib/ckfw/builtins/certdata.txt
++hacked-certdata.txt : $(srcdir)/../../../security/nss/lib/ckfw/builtins/certdata.txt
 +	sed -e "s/^CKA_TRUST_CODE_SIGNING.*CKT_NSS_TRUSTED_DELEGATOR.*/CKA_TRUST_CODE_SIGNING CK_TRUST CKT_NSS_MUST_VERIFY_TRUST/" \
 +			$< > $@
 +
@@ -197,10 +111,10 @@ new file mode 100644
 +libs-nss/lib libs-nss/lib/ckfw: combined-certdata.txt
 +
 +DEFAULT_GMAKE_FLAGS += NSS_CERTDATA_TXT='$(CURDIR)/combined-certdata.txt'
-diff --git a/security/build/b2g-certdata.txt b/security/build/b2g-certdata.txt
+diff --git a/config/external/nss/b2g-certdata.txt b/config/external/nss/b2g-certdata.txt
 new file mode 100644
 --- /dev/null
-+++ b/security/build/b2g-certdata.txt
++++ b/config/external/nss/b2g-certdata.txt
 @@ -0,0 +1,554 @@
 +
 +#
@@ -756,3 +670,89 @@ new file mode 100644
 +CKA_TRUST_EMAIL_PROTECTION CK_TRUST CKT_NSS_TRUSTED_DELEGATOR
 +CKA_TRUST_CODE_SIGNING CK_TRUST CKT_NSS_TRUSTED_DELEGATOR
 +CKA_TRUST_STEP_UP_APPROVED CK_BBOOL CK_FALSE
+diff --git a/configure.in b/configure.in
+--- a/configure.in
++++ b/configure.in
+@@ -7462,16 +7462,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
+     MOZ_B2G_CAMERA=1,
+     MOZ_B2G_CAMERA= )
+ if test -n "$MOZ_B2G_CAMERA"; then
+    AC_DEFINE(MOZ_B2G_CAMERA)
+ fi
+ AC_SUBST(MOZ_B2G_CAMERA)
+ 
+ dnl ========================================================
++dnl = Enable Support B2G-specific changes to the NSS
++dnl = certificate trust database.
++dnl ========================================================
++if test -n "$MOZ_B2G_CERTDATA"; then
++    AC_DEFINE(MOZ_B2G_CERTDATA)
++fi
++AC_SUBST(MOZ_B2G_CERTDATA)
++
++dnl ========================================================
+ dnl = Enable Support for Payment API
+ dnl ========================================================
+ if test -n "$MOZ_PAY"; then
+     AC_DEFINE(MOZ_PAY)
+ fi
+ AC_SUBST(MOZ_PAY)
+ 
+ dnl ========================================================
+diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
+--- a/mobile/android/confvars.sh
++++ b/mobile/android/confvars.sh
+@@ -62,16 +62,19 @@ MOZ_PAY=1
+ # Enable UI for healthreporter
+ MOZ_SERVICES_HEALTHREPORT=1
+ 
+ # Wifi-AP/cell tower data reporting is enabled on non-release builds.
+ if test ! "$RELEASE_BUILD"; then
+ MOZ_DATA_REPORTING=1
+ fi
+ 
++# Enable the production cert for verifying signed packaged apps.
++MOZ_B2G_CERTDATA=1
++
+ # Enable runtime locale switching.
+ MOZ_LOCALE_SWITCHER=1
+ 
+ # Enable second screen and casting support for external devices.
+ MOZ_DEVICES=1
+ 
+ # Enable second screen using native Android libraries
+ MOZ_NATIVE_DEVICES=
+diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
+--- a/security/apps/AppTrustDomain.cpp
++++ b/security/apps/AppTrustDomain.cpp
+@@ -182,16 +182,30 @@ AppTrustDomain::GetCertTrust(EndEntityOr
+     PRUint32 relevantTrustBit = endEntityOrCA == EndEntityOrCA::MustBeCA
+                               ? CERTDB_TRUSTED_CA
+                               : CERTDB_TRUSTED;
+     if (((flags & (relevantTrustBit | CERTDB_TERMINAL_RECORD)))
+             == CERTDB_TERMINAL_RECORD) {
+       trustLevel = TrustLevel::ActivelyDistrusted;
+       return Success;
+     }
++
++#ifdef MOZ_B2G_CERTDATA
++    // XXX(Bug 972201): We have to allow the old way of supporting additional
++    // roots until we fix bug 889744. Remove this along with the rest of the
++    // MOZ_B2G_CERTDATA stuff.
++
++    // For TRUST, we only use the CERTDB_TRUSTED_CA bit, because Gecko hasn't
++    // needed to consider end-entity certs to be their own trust anchors since
++    // Gecko implemented nsICertOverrideService.
++    if (flags & CERTDB_TRUSTED_CA) {
++      trustLevel = TrustLevel::TrustAnchor;
++      return Success;
++    }
++#endif
+   }
+ 
+   // mTrustedRoot is the only trust anchor for this validation.
+   if (CERT_CompareCerts(mTrustedRoot.get(), candidateCert.get())) {
+     trustLevel = TrustLevel::TrustAnchor;
+     return Success;
+   }
+ 
