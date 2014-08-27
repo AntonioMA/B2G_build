@@ -1,17 +1,17 @@
 # HG changeset patch
-# Parent dfd2188b8c619562e40119e3f3a14e06251e891a
+# Parent 8539aa2e021105edd4849264538f9d2f2ab4642d
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
 
 diff --git a/b2g/confvars.sh b/b2g/confvars.sh
 --- a/b2g/confvars.sh
 +++ b/b2g/confvars.sh
-@@ -47,16 +47,17 @@ fi
+@@ -46,16 +46,17 @@ MOZ_XULRUNNER=
+ fi
  
  MOZ_MEDIA_NAVIGATOR=1
  
  MOZ_APP_ID={3c2e2abc-06d4-11e1-ac3b-374f68613e61}
- MOZ_EXTENSION_MANAGER=1
  
  MOZ_TIME_MANAGER=1
  
@@ -27,7 +27,7 @@ diff --git a/b2g/confvars.sh b/b2g/confvars.sh
 diff --git a/config/external/nss/Makefile.in b/config/external/nss/Makefile.in
 --- a/config/external/nss/Makefile.in
 +++ b/config/external/nss/Makefile.in
-@@ -248,16 +248,20 @@ DEFAULT_GMAKE_FLAGS += MODULE_INCLUDES='
+@@ -250,16 +250,20 @@ DEFAULT_GMAKE_FLAGS += MODULE_INCLUDES='
  
  # Work around NSS's MAKE_OBJDIR being racy. See bug #836220
  DEFAULT_GMAKE_FLAGS += MAKE_OBJDIR='$$(INSTALL) -D $$(OBJDIR)'
@@ -50,7 +50,7 @@ diff --git a/config/external/nss/Makefile.in b/config/external/nss/Makefile.in
  NSS_DIRS += nss/lib/dbm
 diff --git a/config/external/nss/b2g-app-root-cert.der b/config/external/nss/b2g-app-root-cert.der
 new file mode 100644
-index 0000000000000000000000000000000000000000..85c2fed92a963b2ff51ee92165d6ed59fa70aeff
+index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..85c2fed92a963b2ff51ee92165d6ed59fa70aeff
 GIT binary patch
 literal 1177
 zc$_n6Vwq~t#9X_8nTe5!iILHOmyJ`a&7<u*FC!xlD}zB}uOYVqCmVAp3!5-gXt1G-
@@ -673,7 +673,7 @@ new file mode 100644
 diff --git a/configure.in b/configure.in
 --- a/configure.in
 +++ b/configure.in
-@@ -7462,16 +7462,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
+@@ -7449,16 +7449,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
      MOZ_B2G_CAMERA=1,
      MOZ_B2G_CAMERA= )
  if test -n "$MOZ_B2G_CAMERA"; then
@@ -702,7 +702,7 @@ diff --git a/configure.in b/configure.in
 diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
 --- a/mobile/android/confvars.sh
 +++ b/mobile/android/confvars.sh
-@@ -62,16 +62,19 @@ MOZ_PAY=1
+@@ -57,16 +57,19 @@ MOZ_PAY=1
  # Enable UI for healthreporter
  MOZ_SERVICES_HEALTHREPORT=1
  
@@ -721,12 +721,12 @@ diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
  MOZ_DEVICES=1
  
  # Enable second screen using native Android libraries
- MOZ_NATIVE_DEVICES=
+ MOZ_NATIVE_DEVICES=1
 diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
 --- a/security/apps/AppTrustDomain.cpp
 +++ b/security/apps/AppTrustDomain.cpp
 @@ -182,16 +182,30 @@ AppTrustDomain::GetCertTrust(EndEntityOr
-     PRUint32 relevantTrustBit = endEntityOrCA == EndEntityOrCA::MustBeCA
+     uint32_t relevantTrustBit = endEntityOrCA == EndEntityOrCA::MustBeCA
                                ? CERTDB_TRUSTED_CA
                                : CERTDB_TRUSTED;
      if (((flags & (relevantTrustBit | CERTDB_TERMINAL_RECORD)))
