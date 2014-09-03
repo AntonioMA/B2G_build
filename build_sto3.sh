@@ -15,7 +15,7 @@ export BUILD_PATCH='build.patch|./build'
 export SYSTEM_CORE_PATCH='system_core.patch|./system/core'
 export GECKO_PATCH="./recover_store_gecko.patch|$GP"
 
-if [ $DEVICE_NAME = flame ]
+if [ $DEVICE_NAME = flame -o $DEVICE_NAME = flame-kk ]
 then
   # We want adb root!
   PATCHES="$BUILD_PATCH $SYSTEM_CORE_PATCH $GECKO_PATCH"
