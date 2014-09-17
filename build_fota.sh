@@ -28,7 +28,7 @@ echo "Build ID: ${BuildID}"
 
 
 FILE_OTA="${TYPE}-${DEVICE}-update.mar"
-URL="http://192.168.2.2:4576/ota/${FILE_OTA}"
+URL=`grep app.update.url gaia/profile/user.js | grep -v "//pref" | cut -d\" -f 4 | sed -e "s/update.xml/${FILE_OTA}/g"`
 
 cp ${SRC_FILE} /var/www/ota/${FILE_OTA}
 
