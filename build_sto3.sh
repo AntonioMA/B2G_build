@@ -2,6 +2,11 @@
 
 source ./.config
 
+# This can be defined in .config also, we do it here
+# so as to not have to modify .config
+# This enable the hardware echo cancel
+export MOZ_WEBRTC_HARDWARE_AEC=1
+
 if [ -f ./.userconfig ]
 then
   source ./.userconfig
@@ -18,7 +23,13 @@ export GECKO_PATCH="./recover_store_gecko.patch|$GP"
 if [ $DEVICE_NAME = flame -o $DEVICE_NAME = flame-kk ]
 then
   # We want adb root!
-  PATCHES="$BUILD_PATCH $SYSTEM_CORE_PATCH $GECKO_PATCH"
+  if [ -f ./add_kernel_patch ]
+  then
+    KERNEL_PATCH="./kernel.patch|./kernel"
+  else
+    KERNEL_PATCH=""
+  fi
+  PATCHES="$BUILD_PATCH $SYSTEM_CORE_PATCH $GECKO_PATCH $KERNEL_PATCH"
   # And UX guys like their font to be present for some reason
   mkdir -p out/target/product/flame/system/fonts/
   cp backup-flame/system/fonts/Fira*OT*.otf out/target/product/flame/system/fonts/
