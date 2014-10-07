@@ -18,7 +18,7 @@ export GECKO_PATCH="./recover_store_gecko.patch|$GP"
 if [ $DEVICE_NAME = flame -o $DEVICE_NAME = flame-kk ]
 then
 
-  if [ $DEVICE_NAME = flame-kk]
+  if [ $DEVICE_NAME = flame-kk ]
   then
     # This can be defined in .config also, we do it here
     # so as to not have to modify .config
