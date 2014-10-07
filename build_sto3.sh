@@ -24,15 +24,17 @@ then
     # so as to not have to modify .config
     # This enable the hardware echo cancel
     export MOZ_WEBRTC_HARDWARE_AEC=1
-  fi
-
-  # We want adb root!
-  if [ -f ./add_kernel_patch ]
-  then
-    KERNEL_PATCH="./kernel.patch|./kernel"
+    if [ -f ./add_kernel_patch ]
+    then
+      KERNEL_PATCH="./kernel.patch|./kernel"
+    else
+      KERNEL_PATCH=""
+    fi
   else
     KERNEL_PATCH=""
   fi
+
+  # We want adb root!
   PATCHES="$BUILD_PATCH $SYSTEM_CORE_PATCH $GECKO_PATCH $KERNEL_PATCH"
   # And UX guys like their font to be present for some reason
   mkdir -p out/target/product/flame/system/fonts/
