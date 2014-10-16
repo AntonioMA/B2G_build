@@ -1,5 +1,5 @@
 # HG changeset patch
-# Parent 8539aa2e021105edd4849264538f9d2f2ab4642d
+# Parent a280a03c9f3cc6207cd17a7c76081e4e7ffd4eea
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
 
@@ -50,7 +50,7 @@ diff --git a/config/external/nss/Makefile.in b/config/external/nss/Makefile.in
  NSS_DIRS += nss/lib/dbm
 diff --git a/config/external/nss/b2g-app-root-cert.der b/config/external/nss/b2g-app-root-cert.der
 new file mode 100644
-index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..85c2fed92a963b2ff51ee92165d6ed59fa70aeff
+index 0000000000000000000000000000000000000000..85c2fed92a963b2ff51ee92165d6ed59fa70aeff
 GIT binary patch
 literal 1177
 zc$_n6Vwq~t#9X_8nTe5!iILHOmyJ`a&7<u*FC!xlD}zB}uOYVqCmVAp3!5-gXt1G-
@@ -673,7 +673,7 @@ new file mode 100644
 diff --git a/configure.in b/configure.in
 --- a/configure.in
 +++ b/configure.in
-@@ -7449,16 +7449,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
+@@ -7599,16 +7599,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
      MOZ_B2G_CAMERA=1,
      MOZ_B2G_CAMERA= )
  if test -n "$MOZ_B2G_CAMERA"; then
@@ -702,7 +702,7 @@ diff --git a/configure.in b/configure.in
 diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
 --- a/mobile/android/confvars.sh
 +++ b/mobile/android/confvars.sh
-@@ -57,16 +57,19 @@ MOZ_PAY=1
+@@ -55,16 +55,19 @@ MOZ_PAY=1
  # Enable UI for healthreporter
  MOZ_SERVICES_HEALTHREPORT=1
  
@@ -725,7 +725,7 @@ diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
 diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
 --- a/security/apps/AppTrustDomain.cpp
 +++ b/security/apps/AppTrustDomain.cpp
-@@ -182,16 +182,30 @@ AppTrustDomain::GetCertTrust(EndEntityOr
+@@ -191,16 +191,30 @@ AppTrustDomain::GetCertTrust(EndEntityOr
      uint32_t relevantTrustBit = endEntityOrCA == EndEntityOrCA::MustBeCA
                                ? CERTDB_TRUSTED_CA
                                : CERTDB_TRUSTED;
