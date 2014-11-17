@@ -702,14 +702,14 @@ diff --git a/configure.in b/configure.in
 diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
 --- a/mobile/android/confvars.sh
 +++ b/mobile/android/confvars.sh
-@@ -55,16 +55,19 @@ MOZ_PAY=1
+@@ -50,16 +50,19 @@ MOZ_APP_STATIC_INI=1
+ MOZ_ENABLE_SZIP=1
+ 
+ # Enable navigator.mozPay
+ MOZ_PAY=1
+ 
  # Enable UI for healthreporter
  MOZ_SERVICES_HEALTHREPORT=1
- 
- # Wifi-AP/cell tower data reporting is enabled on non-release builds.
- if test ! "$RELEASE_BUILD"; then
- MOZ_DATA_REPORTING=1
- fi
  
 +# Enable the production cert for verifying signed packaged apps.
 +MOZ_B2G_CERTDATA=1
@@ -722,6 +722,7 @@ diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
  
  # Enable second screen using native Android libraries, provided we're
  # not resource constrained.
+
 diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
 --- a/security/apps/AppTrustDomain.cpp
 +++ b/security/apps/AppTrustDomain.cpp
