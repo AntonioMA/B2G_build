@@ -24,6 +24,7 @@ then
     # so as to not have to modify .config
     # This enable the hardware echo cancel
     export MOZ_WEBRTC_HARDWARE_AEC=1
+    export MOZ_WEBRTC_HARDWARE_AEC_NS=1
     if [ -f ./add_kernel_patch ]
     then
       KERNEL_PATCH="./kernel.patch|./kernel"
