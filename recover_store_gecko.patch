@@ -1,5 +1,5 @@
 # HG changeset patch
-# Parent a280a03c9f3cc6207cd17a7c76081e4e7ffd4eea
+# Parent 41e681fd45985750a14cd2f7ccbf6e428d96dfad
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
 
@@ -27,7 +27,7 @@ diff --git a/b2g/confvars.sh b/b2g/confvars.sh
 diff --git a/config/external/nss/Makefile.in b/config/external/nss/Makefile.in
 --- a/config/external/nss/Makefile.in
 +++ b/config/external/nss/Makefile.in
-@@ -250,16 +250,20 @@ DEFAULT_GMAKE_FLAGS += MODULE_INCLUDES='
+@@ -257,16 +257,20 @@ DEFAULT_GMAKE_FLAGS += MODULE_INCLUDES='
  
  # Work around NSS's MAKE_OBJDIR being racy. See bug #836220
  DEFAULT_GMAKE_FLAGS += MAKE_OBJDIR='$$(INSTALL) -D $$(OBJDIR)'
@@ -50,7 +50,7 @@ diff --git a/config/external/nss/Makefile.in b/config/external/nss/Makefile.in
  NSS_DIRS += nss/lib/dbm
 diff --git a/config/external/nss/b2g-app-root-cert.der b/config/external/nss/b2g-app-root-cert.der
 new file mode 100644
-index 0000000000000000000000000000000000000000..85c2fed92a963b2ff51ee92165d6ed59fa70aeff
+index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..85c2fed92a963b2ff51ee92165d6ed59fa70aeff
 GIT binary patch
 literal 1177
 zc$_n6Vwq~t#9X_8nTe5!iILHOmyJ`a&7<u*FC!xlD}zB}uOYVqCmVAp3!5-gXt1G-
@@ -673,7 +673,7 @@ new file mode 100644
 diff --git a/configure.in b/configure.in
 --- a/configure.in
 +++ b/configure.in
-@@ -7599,16 +7599,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
+@@ -7576,16 +7576,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
      MOZ_B2G_CAMERA=1,
      MOZ_B2G_CAMERA= )
  if test -n "$MOZ_B2G_CAMERA"; then
@@ -716,7 +716,7 @@ diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
 +
  # Enable reading list service integration.
  #MOZ_ANDROID_READING_LIST_SERVICE=1
-
+ 
  # Enable runtime locale switching.
  MOZ_LOCALE_SWITCHER=1
  
@@ -725,7 +725,7 @@ diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
 diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
 --- a/security/apps/AppTrustDomain.cpp
 +++ b/security/apps/AppTrustDomain.cpp
-@@ -191,16 +191,30 @@ AppTrustDomain::GetCertTrust(EndEntityOr
+@@ -196,16 +196,30 @@ AppTrustDomain::GetCertTrust(EndEntityOr
      uint32_t relevantTrustBit = endEntityOrCA == EndEntityOrCA::MustBeCA
                                ? CERTDB_TRUSTED_CA
                                : CERTDB_TRUSTED;
@@ -756,3 +756,24 @@ diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
      return Success;
    }
  
+diff --git a/security/apps/trusted-app-public.der b/security/apps/trusted-app-public.der
+new file mode 100644
+index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..6c270e5d0444b5da4f60586e514383e8a9ab9090
+GIT binary patch
+literal 874
+zc$_n6Vooz?V)9$S%*4pV#K>sC%f_kI=F#?@mywa1mBAp=klTQhjX9KsO_<3w*pSD7
+z3&i0PW)AUmF_bfq0r9wnMcp!sQq%G)6#Rn~LQ;!M6oO0gi&70`45UEv%)-Jz)liAd
+z^t{ZxbOmQe137VCLt_I&14~0=LjzNzC?MAyiAzhXn-~?4J<7<+z}&>h%K#MTU}|Dy
+zWOyN-#>Og@H(O7qa;nzR%D+}^5xmhWYWF=k%D-1Tqow9+(IRgXsit-1=CXyxziJNX
+z+*$jo`_@Ib9}Am(_gI*C+;GjFo4dSl+O@R#dzz&U^KVX=D>e7~!bu<Vd!Cu?ND)!F
+zBYYt26ffuf%f>6Dvi_@YUi@J1PHnH|3v~}a)K87xpLaL?Mb=`A&Z?&5H%D!gleRP^
+zcduB+<Z{y{c>c_^O7qI<<9m%h+-F*QQ{sw<Pk?Tm%KXbrN*M(SizYqH*Ld^v&y70&
+zbL#B}D`Q^TU-OuK=~!h{;@l~YKUps-oO$Hb$id<FXxEoJPs`3TXS|zo^fQOe#0vY!
+zw~tg_GBRdA5IF42#K^qZ+Q8C)9~g$R!i<dnSy&C2fs}z5NI(@N0E!L{Z8k<$R(57)
+z13r*AKS-Q~nTd%7Efq0?!c;#uD^+v)^M}!|KI8=#$#L@a?0&2z)hn^+xr?^duU+=5
+zx=wwGlS<3mwd>N{BWo@w8%$d5R4+Q!W95T@lKICowDlh=&uLkoV7u(<$s4-vQ(JDu
+zY<g^Yynn0n*CoouwV!TZFjd^YF7w3mxWg)ze(|-N8S?|bnyj9Zb}>lS-_<g}{)e4+
+z__IIpzb~I*Qdz)eFe#GDH>SePl`V^-vCZbI^2VjEJKX+hO~^O3>YZU`lsI*x%rXY8
+zy!(geP4Y03X<5uGb8wm@<D6=b1NjRw1TO!buv>)v%699CeZ1ALGM80y>t4EYmF2}U
+gg?m>ndOTk7s5fBm=^3vlU%g-T?vImqn(eh_05ESw!vFvP
+
