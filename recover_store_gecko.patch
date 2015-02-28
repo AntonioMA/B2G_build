@@ -1,5 +1,5 @@
 # HG changeset patch
-# Parent 41e681fd45985750a14cd2f7ccbf6e428d96dfad
+# Parent f8217f071084f33f969733e6a8163822be5e309a
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
 
@@ -673,7 +673,7 @@ new file mode 100644
 diff --git a/configure.in b/configure.in
 --- a/configure.in
 +++ b/configure.in
-@@ -7576,16 +7576,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
+@@ -7572,16 +7572,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
      MOZ_B2G_CAMERA=1,
      MOZ_B2G_CAMERA= )
  if test -n "$MOZ_B2G_CAMERA"; then
@@ -699,6 +699,29 @@ diff --git a/configure.in b/configure.in
  AC_SUBST(MOZ_PAY)
  
  dnl ========================================================
+diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUtils.jsm
+--- a/dom/apps/TrustedHostedAppsUtils.jsm
++++ b/dom/apps/TrustedHostedAppsUtils.jsm
+@@ -196,17 +196,18 @@ this.TrustedHostedAppsUtils = {
+                  .getService(Ci.nsIX509CertDB);
+     } catch (e) {
+       debug("nsIX509CertDB error: " + e);
+       // unrecoverable error, don't bug the user
+       throw "CERTDB_ERROR";
+     }
+ 
+     let principal = Services.scriptSecurityManager.getAppCodebasePrincipal(
+-                      aApp.origin, aApp.localId, false);
++                          Services.io.newURI(aApp.origin, null, null),
++                          aApp.localId, false);
+ 
+     let mRequestChannel = NetUtil.newChannel2(aApp.manifestURL,
+                                               null,
+                                               null,
+                                               null,      // aLoadingNode
+                                               principal,
+                                               null,      // aTriggeringPrincipal
+                                               Ci.nsILoadInfo.SEC_NORMAL,
 diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
 --- a/mobile/android/confvars.sh
 +++ b/mobile/android/confvars.sh
@@ -756,6 +779,30 @@ diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
      return Success;
    }
  
+diff --git a/security/apps/Makefile.in b/security/apps/Makefile.in
+--- a/security/apps/Makefile.in
++++ b/security/apps/Makefile.in
+@@ -16,18 +16,18 @@ marketplace-dev-public.inc: marketplace-
+ 	$(PYTHON) $(GEN_CERT_HEADER) marketplaceDevPublicRoot $< > $@
+ 
+ marketplace-dev-reviewers.inc: marketplace-dev-reviewers.crt $(GEN_CERT_HEADER)
+ 	$(PYTHON) $(GEN_CERT_HEADER) marketplaceDevReviewersRoot $< > $@
+ 
+ marketplace-stage.inc: marketplace-stage.crt $(GEN_CERT_HEADER)
+ 	$(PYTHON) $(GEN_CERT_HEADER) marketplaceStageRoot $< > $@
+ 
+-ifeq ($(shell test -s trusted-app-public.der; echo $$?),0)
+-TRUSTED_APP_PUBLIC=trusted-app-public.der
++ifeq ($(shell test -s $(srcdir)/trusted-app-public.der; echo $$?),0)
++TRUSTED_APP_PUBLIC=$(srcdir)/trusted-app-public.der
+ else
+ TRUSTED_APP_PUBLIC=
+ endif
+ 
+ manifest-signing-root.inc: $(TRUSTED_APP_PUBLIC) $(GEN_CERT_HEADER)
+ 	$(PYTHON) $(GEN_CERT_HEADER) trustedAppPublicRoot $(TRUSTED_APP_PUBLIC) > $@
+ 
+ manifest-signing-test-root.inc: $(TEST_SSL_PATH)trusted_ca1.der $(GEN_CERT_HEADER)
 diff --git a/security/apps/trusted-app-public.der b/security/apps/trusted-app-public.der
 new file mode 100644
 index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..6c270e5d0444b5da4f60586e514383e8a9ab9090
