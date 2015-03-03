@@ -1,5 +1,5 @@
 # HG changeset patch
-# Parent f8217f071084f33f969733e6a8163822be5e309a
+# Parent b94bcbc389e828344479f700d3970537c4abfff2
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
 
@@ -702,7 +702,53 @@ diff --git a/configure.in b/configure.in
 diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUtils.jsm
 --- a/dom/apps/TrustedHostedAppsUtils.jsm
 +++ b/dom/apps/TrustedHostedAppsUtils.jsm
-@@ -196,17 +196,18 @@ this.TrustedHostedAppsUtils = {
+@@ -88,17 +88,21 @@ this.TrustedHostedAppsUtils = {
+    * not contain some of the required csp directives the function will
+    * return empty list with status set to false.  Otherwise a parsed
+    * list of the unique sources listed from the required csp
+    * directives is returned.
+    */
+   getCSPWhiteList: function(aCsp) {
+     let isValid = false;
+     let whiteList = [];
+-    let requiredDirectives = [ "script-src", "style-src" ];
++    let keywordsDirectives = {
++      "script-src": ["'self'", "'none'"],
++      "style-src": ["'self'", "'none'", "'unsafe-inline'"]
++    };
++    let requiredDirectives = Object.keys(keywordsDirectives);
+ 
+     if (aCsp) {
+       let validDirectives = [];
+       let directives = aCsp.split(";");
+       // TODO: Use nsIContentSecurityPolicy
+       directives
+         .map(aDirective => aDirective.trim().split(" "))
+         .filter(aList => aList.length > 1)
+@@ -108,19 +112,21 @@ this.TrustedHostedAppsUtils = {
+           // aList[0] contains the directive name.
+           // aList[1..n] contains sources.
+           let directiveName = aList.shift();
+           let sources = aList;
+ 
+           if ((-1 == validDirectives.indexOf(directiveName))) {
+             validDirectives.push(directiveName);
+           }
++          let validKeywords = keywordsDirectives[directiveName];
+           whiteList.push(...sources.filter(
+              // 'self' is checked separately during manifest check
+-            aSource => (aSource !="'self'" && whiteList.indexOf(aSource) == -1)
++            aSource => (validKeywords.indexOf(aSource) === -1 &&
++                        whiteList.indexOf(aSource) === -1)
+           ));
+         });
+ 
+       // Check if all required directives are present.
+       isValid = requiredDirectives.length === validDirectives.length;
+ 
+       if (!isValid) {
+         debug("White list doesn't contain all required directives!");
+@@ -196,17 +202,18 @@ this.TrustedHostedAppsUtils = {
                   .getService(Ci.nsIX509CertDB);
      } catch (e) {
        debug("nsIX509CertDB error: " + e);
