@@ -1,5 +1,5 @@
 # HG changeset patch
-# Parent b94bcbc389e828344479f700d3970537c4abfff2
+# Parent 96597a6511f0eaa39476d64cbdb0d52871d7e0fa
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
 
@@ -50,7 +50,7 @@ diff --git a/config/external/nss/Makefile.in b/config/external/nss/Makefile.in
  NSS_DIRS += nss/lib/dbm
 diff --git a/config/external/nss/b2g-app-root-cert.der b/config/external/nss/b2g-app-root-cert.der
 new file mode 100644
-index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..85c2fed92a963b2ff51ee92165d6ed59fa70aeff
+index 0000000000000000000000000000000000000000..85c2fed92a963b2ff51ee92165d6ed59fa70aeff
 GIT binary patch
 literal 1177
 zc$_n6Vwq~t#9X_8nTe5!iILHOmyJ`a&7<u*FC!xlD}zB}uOYVqCmVAp3!5-gXt1G-
@@ -673,7 +673,7 @@ new file mode 100644
 diff --git a/configure.in b/configure.in
 --- a/configure.in
 +++ b/configure.in
-@@ -7572,16 +7572,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
+@@ -7575,16 +7575,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
      MOZ_B2G_CAMERA=1,
      MOZ_B2G_CAMERA= )
  if test -n "$MOZ_B2G_CAMERA"; then
@@ -768,6 +768,23 @@ diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUti
                                                principal,
                                                null,      // aTriggeringPrincipal
                                                Ci.nsILoadInfo.SEC_NORMAL,
+@@ -278,12 +285,15 @@ this.TrustedHostedAppsUtils = {
+       if (!this.isHostPinned(aApp.manifestURL)) {
+         reject("TRUSTED_APPLICATION_HOST_CERTIFICATE_INVALID");
+         return;
+       }
+       if (!this.verifyCSPWhiteList(aManifest.csp)) {
+         reject("TRUSTED_APPLICATION_WHITELIST_VALIDATION_FAILED");
+         return;
+       }
+-      this.verifySignedManifest(aApp, aAppId).then(resolve, reject);
++      // CJC We aren't going to verify signed manifest until
++      // Mozilla's decided how trusted apps are going to work
++      //this.verifySignedManifest(aApp, aAppId).then(resolve, reject);
++      resolve();
+     });
+   }
+ };
 diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
 --- a/mobile/android/confvars.sh
 +++ b/mobile/android/confvars.sh
@@ -851,7 +868,7 @@ diff --git a/security/apps/Makefile.in b/security/apps/Makefile.in
  manifest-signing-test-root.inc: $(TEST_SSL_PATH)trusted_ca1.der $(GEN_CERT_HEADER)
 diff --git a/security/apps/trusted-app-public.der b/security/apps/trusted-app-public.der
 new file mode 100644
-index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..6c270e5d0444b5da4f60586e514383e8a9ab9090
+index 0000000000000000000000000000000000000000..6c270e5d0444b5da4f60586e514383e8a9ab9090
 GIT binary patch
 literal 874
 zc$_n6Vooz?V)9$S%*4pV#K>sC%f_kI=F#?@mywa1mBAp=klTQhjX9KsO_<3w*pSD7
