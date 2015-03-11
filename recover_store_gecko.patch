@@ -1,8 +1,31 @@
 # HG changeset patch
-# Parent 96597a6511f0eaa39476d64cbdb0d52871d7e0fa
+# Parent 5a5b026e06094d9f192c82032cdb7357bbe0e800
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
 
+diff --git a/b2g/app/b2g.js b/b2g/app/b2g.js
+--- a/b2g/app/b2g.js
++++ b/b2g/app/b2g.js
+@@ -414,17 +414,18 @@ pref("content.ime.strict_policy", true);
+ // $ adb shell setprop log.redirect-stdio true
+ // $ adb shell start
+ pref("browser.dom.window.dump.enabled", false);
+ 
+ // Default Content Security Policy to apply to certified apps.
+ // If you change this CSP, make sure to update the fast path in nsCSPService.cpp
+ pref("security.apps.certified.CSP.default", "default-src *; script-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline' app://theme.gaiamobile.org");
+ // Default Content Security Policy to apply to trusted apps.
+-pref("security.apps.trusted.CSP.default", "default-src *; object-src 'none'; frame-src 'none'");
++pref("security.apps.trusted.CSP.default", "default-src *; object-src 'none'; frame-src 'none'; style-src 'self' 'unsafe-inline'");
++
+ 
+ // Temporarily force-enable GL compositing.  This is default-disabled
+ // deep within the bowels of the widgetry system.  Remove me when GL
+ // compositing isn't default disabled in widget/android.
+ pref("layers.acceleration.force-enabled", true);
+ 
+ // handle links targeting new windows
+ // 1=current window/tab, 2=new window, 3=new tab in most recent window
 diff --git a/b2g/confvars.sh b/b2g/confvars.sh
 --- a/b2g/confvars.sh
 +++ b/b2g/confvars.sh
@@ -50,7 +73,7 @@ diff --git a/config/external/nss/Makefile.in b/config/external/nss/Makefile.in
  NSS_DIRS += nss/lib/dbm
 diff --git a/config/external/nss/b2g-app-root-cert.der b/config/external/nss/b2g-app-root-cert.der
 new file mode 100644
-index 0000000000000000000000000000000000000000..85c2fed92a963b2ff51ee92165d6ed59fa70aeff
+index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..85c2fed92a963b2ff51ee92165d6ed59fa70aeff
 GIT binary patch
 literal 1177
 zc$_n6Vwq~t#9X_8nTe5!iILHOmyJ`a&7<u*FC!xlD}zB}uOYVqCmVAp3!5-gXt1G-
@@ -673,7 +696,7 @@ new file mode 100644
 diff --git a/configure.in b/configure.in
 --- a/configure.in
 +++ b/configure.in
-@@ -7575,16 +7575,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
+@@ -7537,16 +7537,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
      MOZ_B2G_CAMERA=1,
      MOZ_B2G_CAMERA= )
  if test -n "$MOZ_B2G_CAMERA"; then
@@ -748,6 +771,31 @@ diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUti
  
        if (!isValid) {
          debug("White list doesn't contain all required directives!");
+@@ -140,20 +146,20 @@ this.TrustedHostedAppsUtils = {
+    */
+   verifyCSPWhiteList: function(aCsp) {
+     let domainWhitelist = this.getCSPWhiteList(aCsp);
+     if (!domainWhitelist.valid) {
+       debug("TRUSTED_APPLICATION_WHITELIST_PARSING_FAILED");
+       return false;
+     }
+ 
+-    if (!domainWhitelist.list.every(aUrl => this.isHostPinned(aUrl))) {
+-      debug("TRUSTED_APPLICATION_WHITELIST_VALIDATION_FAILED");
+-      return false;
+-    }
++    //if (!domainWhitelist.list.every(aUrl => this.isHostPinned(aUrl))) {
++    //  debug("TRUSTED_APPLICATION_WHITELIST_VALIDATION_FAILED");
++    //  return false;
++    //}
+ 
+     return true;
+   },
+ 
+   _verifySignedFile: function(aManifestStream, aSignatureStream, aCertDb) {
+     let deferred = Promise.defer();
+ 
+     let root = Ci.nsIX509CertDB.TrustedHostedAppPublicRoot;
 @@ -196,17 +202,18 @@ this.TrustedHostedAppsUtils = {
                   .getService(Ci.nsIX509CertDB);
      } catch (e) {
@@ -868,7 +916,7 @@ diff --git a/security/apps/Makefile.in b/security/apps/Makefile.in
  manifest-signing-test-root.inc: $(TEST_SSL_PATH)trusted_ca1.der $(GEN_CERT_HEADER)
 diff --git a/security/apps/trusted-app-public.der b/security/apps/trusted-app-public.der
 new file mode 100644
-index 0000000000000000000000000000000000000000..6c270e5d0444b5da4f60586e514383e8a9ab9090
+index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..6c270e5d0444b5da4f60586e514383e8a9ab9090
 GIT binary patch
 literal 874
 zc$_n6Vooz?V)9$S%*4pV#K>sC%f_kI=F#?@mywa1mBAp=klTQhjX9KsO_<3w*pSD7
