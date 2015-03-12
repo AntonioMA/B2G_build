@@ -725,7 +725,27 @@ diff --git a/configure.in b/configure.in
 diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUtils.jsm
 --- a/dom/apps/TrustedHostedAppsUtils.jsm
 +++ b/dom/apps/TrustedHostedAppsUtils.jsm
-@@ -88,17 +88,21 @@ this.TrustedHostedAppsUtils = {
+@@ -42,16 +42,19 @@ let debug = Services.prefs.getBoolPref("
+  * Verification functions for Trusted Hosted Apps.
+  */
+ this.TrustedHostedAppsUtils = {
+ 
+   /**
+    * Check if the given host is pinned in the CA pinning database.
+    */
+   isHostPinned: function (aUrl) {
++
++    return true;
++
+     let uri;
+     try {
+       uri = Services.io.newURI(aUrl, null, null);
+     } catch(e) {
+       debug("Host parsing failed: " + e);
+       return false;
+     }
+ 
+@@ -88,17 +91,21 @@ this.TrustedHostedAppsUtils = {
     * not contain some of the required csp directives the function will
     * return empty list with status set to false.  Otherwise a parsed
     * list of the unique sources listed from the required csp
@@ -748,7 +768,7 @@ diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUti
        directives
          .map(aDirective => aDirective.trim().split(" "))
          .filter(aList => aList.length > 1)
-@@ -108,19 +112,21 @@ this.TrustedHostedAppsUtils = {
+@@ -108,19 +115,21 @@ this.TrustedHostedAppsUtils = {
            // aList[0] contains the directive name.
            // aList[1..n] contains sources.
            let directiveName = aList.shift();
@@ -771,32 +791,7 @@ diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUti
  
        if (!isValid) {
          debug("White list doesn't contain all required directives!");
-@@ -140,20 +146,20 @@ this.TrustedHostedAppsUtils = {
-    */
-   verifyCSPWhiteList: function(aCsp) {
-     let domainWhitelist = this.getCSPWhiteList(aCsp);
-     if (!domainWhitelist.valid) {
-       debug("TRUSTED_APPLICATION_WHITELIST_PARSING_FAILED");
-       return false;
-     }
- 
--    if (!domainWhitelist.list.every(aUrl => this.isHostPinned(aUrl))) {
--      debug("TRUSTED_APPLICATION_WHITELIST_VALIDATION_FAILED");
--      return false;
--    }
-+    //if (!domainWhitelist.list.every(aUrl => this.isHostPinned(aUrl))) {
-+    //  debug("TRUSTED_APPLICATION_WHITELIST_VALIDATION_FAILED");
-+    //  return false;
-+    //}
- 
-     return true;
-   },
- 
-   _verifySignedFile: function(aManifestStream, aSignatureStream, aCertDb) {
-     let deferred = Promise.defer();
- 
-     let root = Ci.nsIX509CertDB.TrustedHostedAppPublicRoot;
-@@ -196,17 +202,18 @@ this.TrustedHostedAppsUtils = {
+@@ -196,17 +205,18 @@ this.TrustedHostedAppsUtils = {
                   .getService(Ci.nsIX509CertDB);
      } catch (e) {
        debug("nsIX509CertDB error: " + e);
@@ -816,7 +811,7 @@ diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUti
                                                principal,
                                                null,      // aTriggeringPrincipal
                                                Ci.nsILoadInfo.SEC_NORMAL,
-@@ -278,12 +285,15 @@ this.TrustedHostedAppsUtils = {
+@@ -278,12 +288,15 @@ this.TrustedHostedAppsUtils = {
        if (!this.isHostPinned(aApp.manifestURL)) {
          reject("TRUSTED_APPLICATION_HOST_CERTIFICATE_INVALID");
          return;
