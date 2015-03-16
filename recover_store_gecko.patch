@@ -735,7 +735,7 @@ diff --git a/dom/apps/PermissionsTable.jsm b/dom/apps/PermissionsTable.jsm
                             fmradio: {
                               app: DENY_ACTION,
 -                             trusted: DENY_ACTION,
-+                             trusted: PROMPT_ACTION,
++                             trusted: ALLOW_ACTION,
                               privileged: ALLOW_ACTION,
                               certified: ALLOW_ACTION
                             },
@@ -754,7 +754,7 @@ diff --git a/dom/apps/PermissionsTable.jsm b/dom/apps/PermissionsTable.jsm
                             "audio-channel-alarm": {
                               app: DENY_ACTION,
 -                             trusted: DENY_ACTION,
-+                             trusted: PROMPT_ACTION,
++                             trusted: ALLOW_ACTION,
                               privileged: ALLOW_ACTION,
                               certified: ALLOW_ACTION
                             },
@@ -773,7 +773,7 @@ diff --git a/dom/apps/PermissionsTable.jsm b/dom/apps/PermissionsTable.jsm
                             "speaker-control": {
                               app: DENY_ACTION,
 -                             trusted: DENY_ACTION,
-+                             trusted: PROMPT_ACTION,
++                             trusted: ALLOW_ACTION,
                               privileged: ALLOW_ACTION,
                               certified: ALLOW_ACTION
                             },
