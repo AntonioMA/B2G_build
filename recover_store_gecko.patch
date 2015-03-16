@@ -1,5 +1,5 @@
 # HG changeset patch
-# Parent 5a5b026e06094d9f192c82032cdb7357bbe0e800
+# Parent 695e1698be4096dd66aa50fef427323385921618
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
 
@@ -696,7 +696,7 @@ new file mode 100644
 diff --git a/configure.in b/configure.in
 --- a/configure.in
 +++ b/configure.in
-@@ -7537,16 +7537,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
+@@ -7534,16 +7534,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
      MOZ_B2G_CAMERA=1,
      MOZ_B2G_CAMERA= )
  if test -n "$MOZ_B2G_CAMERA"; then
@@ -722,6 +722,107 @@ diff --git a/configure.in b/configure.in
  AC_SUBST(MOZ_PAY)
  
  dnl ========================================================
+diff --git a/dom/apps/PermissionsTable.jsm b/dom/apps/PermissionsTable.jsm
+--- a/dom/apps/PermissionsTable.jsm
++++ b/dom/apps/PermissionsTable.jsm
+@@ -200,17 +200,17 @@ this.PermissionsTable =  { geolocation: 
+                            phonenumberservice: {
+                              app: DENY_ACTION,
+                              trusted: DENY_ACTION,
+                              privileged: DENY_ACTION,
+                              certified: ALLOW_ACTION
+                            },
+                            fmradio: {
+                              app: DENY_ACTION,
+-                             trusted: DENY_ACTION,
++                             trusted: PROMPT_ACTION,
+                              privileged: ALLOW_ACTION,
+                              certified: ALLOW_ACTION
+                            },
+                            attention: {
+                              app: DENY_ACTION,
+                              trusted: DENY_ACTION,
+                              privileged: DENY_ACTION,
+                              certified: ALLOW_ACTION
+@@ -333,17 +333,17 @@ this.PermissionsTable =  { geolocation: 
+                            "audio-channel-notification": {
+                              app: DENY_ACTION,
+                              trusted: DENY_ACTION,
+                              privileged: ALLOW_ACTION,
+                              certified: ALLOW_ACTION
+                            },
+                            "audio-channel-alarm": {
+                              app: DENY_ACTION,
+-                             trusted: DENY_ACTION,
++                             trusted: PROMPT_ACTION,
+                              privileged: ALLOW_ACTION,
+                              certified: ALLOW_ACTION
+                            },
+                            "audio-channel-telephony": {
+                              app: DENY_ACTION,
+                              trusted: DENY_ACTION,
+                              privileged: DENY_ACTION,
+                              certified: ALLOW_ACTION
+@@ -431,17 +431,17 @@ this.PermissionsTable =  { geolocation: 
+                            "nfc-hci-events": {
+                              app: DENY_ACTION,
+                              trusted: DENY_ACTION,
+                              privileged: DENY_ACTION,
+                              certified: ALLOW_ACTION
+                            },
+                            "speaker-control": {
+                              app: DENY_ACTION,
+-                             trusted: DENY_ACTION,
++                             trusted: PROMPT_ACTION,
+                              privileged: ALLOW_ACTION,
+                              certified: ALLOW_ACTION
+                            },
+                            "downloads": {
+                              app: DENY_ACTION,
+                              trusted: DENY_ACTION,
+                              privileged: DENY_ACTION,
+                              certified: ALLOW_ACTION
+@@ -488,16 +488,40 @@ this.PermissionsTable =  { geolocation: 
+                              substitute: ["firefox-accounts"]
+                              },
+                            "themeable": {
+                              app: DENY_ACTION,
+                              trusted: DENY_ACTION,
+                              privileged: DENY_ACTION,
+                              certified: ALLOW_ACTION
+                            },
++                           "settings:audio.volume.alarm": {
++                             app: DENY_ACTION,
++                             trusted: ALLOW_ACTION,
++                             privileged: ALLOW_ACTION,
++                             certified: ALLOW_ACTION,
++                             access: ["read", "write"],
++                             additional: ["settings-api"]
++                           },
++                           "settings:alarm.enabled": {
++                             app: DENY_ACTION,
++                             trusted: ALLOW_ACTION,
++                             privileged: ALLOW_ACTION,
++                             certified: ALLOW_ACTION,
++                             access: ["read", "write"],
++                             additional: ["settings-api"]
++                           },
++                           "settings:airplaneMode.enabled": {
++                             app: DENY_ACTION,
++                             trusted: ALLOW_ACTION,
++                             privileged: ALLOW_ACTION,
++                             certified: ALLOW_ACTION,
++                             access: ["read"],
++                             additional: ["settings-api"]
++                           },
+                            "settings:wallpaper.image": {
+                              app: DENY_ACTION,
+                              trusted: DENY_ACTION,
+                              privileged: ALLOW_ACTION,
+                              certified: ALLOW_ACTION,
+                              access: ["read", "write"],
+                              additional: ["settings-api"]
+                            },
 diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUtils.jsm
 --- a/dom/apps/TrustedHostedAppsUtils.jsm
 +++ b/dom/apps/TrustedHostedAppsUtils.jsm
