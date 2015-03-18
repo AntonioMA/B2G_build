@@ -1,7 +1,9 @@
 # HG changeset patch
-# Parent 695e1698be4096dd66aa50fef427323385921618
+# Parent 79839fdcd7872fca5b8b667c16a71dfc97689d64
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
+* * *
+Bug 1144689 - Allow setting manually a fetch time and modified time for cache entries
 
 diff --git a/b2g/app/b2g.js b/b2g/app/b2g.js
 --- a/b2g/app/b2g.js
@@ -722,6 +724,202 @@ diff --git a/configure.in b/configure.in
  AC_SUBST(MOZ_PAY)
  
  dnl ========================================================
+diff --git a/dom/apps/OfflineCacheInstaller.jsm b/dom/apps/OfflineCacheInstaller.jsm
+--- a/dom/apps/OfflineCacheInstaller.jsm
++++ b/dom/apps/OfflineCacheInstaller.jsm
+@@ -41,40 +41,47 @@ function enableOfflineCacheForApp(aPrinc
+   Services.perms.addFromPrincipal(aPrincipal, 'offline-app',
+                                   Ci.nsIPermissionManager.ALLOW_ACTION);
+   // Prevent cache from being evicted:
+   Services.perms.addFromPrincipal(aPrincipal, 'pin-app',
+                                   Ci.nsIPermissionManager.ALLOW_ACTION);
+ }
+ 
+ 
+-function storeCache(applicationCache, url, file, itemType) {
++function storeCache(applicationCache, url, file, itemType, metadata) {
+   let storage =
+     Services.cache2.appCacheStorage(LoadContextInfo.default, applicationCache);
+   let uri = Services.io.newURI(url, null, null);
+   storage.asyncOpenURI(uri, "", nsICacheStorage.OPEN_TRUNCATE, {
+     onCacheEntryAvailable:
+       function (cacheEntry, isNew, appCache, result) {
+         cacheEntry.setMetaDataElement('request-method', 'GET');
+         cacheEntry.setMetaDataElement('response-head', 'HTTP/1.1 200 OK\r\n');
+ 
+         let outputStream = cacheEntry.openOutputStream(0);
+ 
+-        // Input-Output stream machinery in order to push nsIFile content into cache
++        // Input-Output stream machinery in order to push nsIFile content into
++        // cache
+         let inputStream = Cc['@mozilla.org/network/file-input-stream;1']
+                             .createInstance(Ci.nsIFileInputStream);
+         inputStream.init(file, 1, -1, null);
+-        let bufferedOutputStream = Cc['@mozilla.org/network/buffered-output-stream;1']
+-                                     .createInstance(Ci.nsIBufferedOutputStream);
++        let bufferedOutputStream =
++          Cc['@mozilla.org/network/buffered-output-stream;1']
++            .createInstance(Ci.nsIBufferedOutputStream);
+         bufferedOutputStream.init(outputStream, 1024);
+         bufferedOutputStream.writeFrom(inputStream, inputStream.available());
+         bufferedOutputStream.flush();
+         bufferedOutputStream.close();
+         inputStream.close();
+ 
++        metadata && metadata.lastModified &&
++          cacheEntry.setLastModified(parseInt(metadata.lastModified));
++        metadata && metadata.lastFetched &&
++          cacheEntry.setLastFetched(parseInt(metadata.lastFetched));
++        cacheEntry.setExpirationTime(0);
+         cacheEntry.markValid();
+         debug (file.path + ' -> ' + url + ' (' + itemType + ')');
+         applicationCache.markEntry(url, itemType);
+         cacheEntry.close();
+       }
+   });
+ }
+ 
+@@ -201,77 +208,98 @@ function parseAppCache(app, path, conten
+   };
+ }
+ 
+ function installCache(app) {
+   if (!app.cachePath) {
+     return;
+   }
+ 
+-  let cacheDir = makeFile(app.cachePath)
++  let cacheDir = makeFile(app.cachePath);
+   cacheDir.append(app.appId);
++
++  let resourcesMetadata = cacheDir.clone();
++  resourcesMetadata.append('resources_metadata.json');
++
+   cacheDir.append('cache');
+   if (!cacheDir.exists())
+     return;
+ 
+   let cacheManifest = cacheDir.clone();
+   cacheManifest.append('manifest.appcache');
+   if (!cacheManifest.exists())
+     return;
+ 
+   let principal = Services.scriptSecurityManager.getAppCodebasePrincipal(
+-                    app.origin, app.localId, false);
++      app.origin, app.localId, false);
+ 
+-  enableOfflineCacheForApp(principal);
++  // If the build has been correctly configured, this should not happen!
++  // If we install the cache anyway, it won't be updateable. If we don't install
++  // it, the application won't be useable offline.
++  let metadataLoaded;
++  if (!resourcesMetadata.exists()) {
++    // Not debug, since this is something that should be logged always!
++    dump("OfflineCacheInstaller: App " + app.appId + " does have an app cache" +
++         " but does not have a resources_metadata.json file!");
++    metadataLoaded = Promise.resolve({});
++  } else {
++    metadataLoaded = new Promise(
++      (resolve, reject) =>
++        readFile(resourcesMetadata, principal, content => resolve(JSON.parse(content))));
++  }
+ 
+-  // Get the url for the manifest.
+-  let appcacheURL = app.appcache_path;
++  metadataLoaded.then(function(metadata) {
++    enableOfflineCacheForApp(principal);
+ 
+-  // The group ID contains application id and 'f' for not being hosted in
+-  // a browser element, but a mozbrowser iframe.
+-  // See netwerk/cache/nsDiskCacheDeviceSQL.cpp: AppendJARIdentifier
+-  let groupID = appcacheURL + '#' + app.localId+ '+f';
+-  let applicationCache = applicationCacheService.createApplicationCache(groupID);
+-  applicationCache.activate();
++    // Get the url for the manifest.
++    let appcacheURL = app.appcache_path;
+ 
+-  readFile(cacheManifest, principal, function readAppCache(content) {
+-    let entries = parseAppCache(app, cacheManifest.path, content);
++    // The group ID contains application id and 'f' for not being hosted in
++    // a browser element, but a mozbrowser iframe.
++    // See netwerk/cache/nsDiskCacheDeviceSQL.cpp: AppendJARIdentifier
++    let groupID = appcacheURL + '#' + app.localId+ '+f';
++    let applicationCache = applicationCacheService.createApplicationCache(groupID);
++    applicationCache.activate();
+ 
+-    entries.urls.forEach(function processCachedFile(url) {
+-      // Get this nsIFile from cache folder for this URL
+-      // We have absolute urls, so remove the origin part to locate the
+-      // files.
+-      let path = url.replace(app.origin.spec, '');
+-      let file = cacheDir.clone();
+-      let paths = path.split('/');
+-      paths.forEach(file.append);
++    readFile(cacheManifest, principal, function readAppCache(content) {
++      let entries = parseAppCache(app, cacheManifest.path, content);
+ 
+-      if (!file.exists()) {
+-        let msg = 'File ' + file.path + ' exists in the manifest but does ' +
+-                  'not points to a real file.';
+-        throw new Error(msg);
+-      }
++      entries.urls.forEach(function processCachedFile(url) {
++        // Get this nsIFile from cache folder for this URL
++        // We have absolute urls, so remove the origin part to locate the
++        // files.
++        let path = url.replace(app.origin.spec, '');
++        let file = cacheDir.clone();
++        let paths = path.split('/');
++        paths.forEach(file.append);
+ 
+-      let itemType = nsIApplicationCache.ITEM_EXPLICIT;
+-      if (entries.fallbacks.indexOf(url) > -1) {
+-        debug('add fallback: ' + url + '\n');
+-        itemType |= nsIApplicationCache.ITEM_FALLBACK;
+-      }
+-      storeCache(applicationCache, url, file, itemType);
++        if (!file.exists()) {
++          let msg = 'File ' + file.path + ' exists in the manifest but does ' +
++                    'not points to a real file.';
++          throw new Error(msg);
++        }
++
++        let itemType = nsIApplicationCache.ITEM_EXPLICIT;
++        if (entries.fallbacks.indexOf(url) > -1) {
++          debug('add fallback: ' + url + '\n');
++          itemType |= nsIApplicationCache.ITEM_FALLBACK;
++        }
++        storeCache(applicationCache, url, file, itemType, metadata[path]);
++      });
++
++      let array = new MutableArray();
++      entries.namespaces.forEach(function processNamespace([type, spec, data]) {
++        debug('add namespace: ' + type + ' - ' + spec + ' - ' + data + '\n');
++        array.appendElement(new Namespace(type, spec, data), false);
++      });
++      applicationCache.addNamespaces(array);
++
++      storeCache(applicationCache, appcacheURL, cacheManifest,
++                 nsIApplicationCache.ITEM_MANIFEST);
+     });
+-
+-    let array = new MutableArray();
+-    entries.namespaces.forEach(function processNamespace([type, spec, data]) {
+-      debug('add namespace: ' + type + ' - ' + spec + ' - ' + data + '\n');
+-      array.appendElement(new Namespace(type, spec, data), false);
+-    });
+-    applicationCache.addNamespaces(array);
+-
+-    storeCache(applicationCache, appcacheURL, cacheManifest,
+-               nsIApplicationCache.ITEM_MANIFEST);
+   });
+ }
+ 
+ 
+ // Public API
+ 
+ this.OfflineCacheInstaller = {
+   installCache: installCache
 diff --git a/dom/apps/PermissionsTable.jsm b/dom/apps/PermissionsTable.jsm
 --- a/dom/apps/PermissionsTable.jsm
 +++ b/dom/apps/PermissionsTable.jsm
@@ -952,6 +1150,439 @@ diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
  
  # Enable second screen and casting support for external devices.
  MOZ_DEVICES=1
+diff --git a/netwerk/cache/nsCacheEntryDescriptor.cpp b/netwerk/cache/nsCacheEntryDescriptor.cpp
+--- a/netwerk/cache/nsCacheEntryDescriptor.cpp
++++ b/netwerk/cache/nsCacheEntryDescriptor.cpp
+@@ -203,16 +203,40 @@ nsCacheEntryDescriptor::SetExpirationTim
+     if (!mCacheEntry)  return NS_ERROR_NOT_AVAILABLE;
+ 
+     mCacheEntry->SetExpirationTime(expirationTime);
+     mCacheEntry->MarkEntryDirty();
+     return NS_OK;
+ }
+ 
+ 
++NS_IMETHODIMP
++nsCacheEntryDescriptor::SetLastModified(uint32_t lastModified)
++{
++    nsCacheServiceAutoLock lock(LOCK_TELEM(NSCACHEENTRYDESCRIPTOR_SETLASTMODIFIED));
++    if (!mCacheEntry)  return NS_ERROR_NOT_AVAILABLE;
++
++    mCacheEntry->SetLastModified(lastModified);
++    mCacheEntry->MarkEntryDirty();
++    return NS_OK;
++}
++
++
++NS_IMETHODIMP
++nsCacheEntryDescriptor::SetLastFetched(uint32_t lastFetched)
++{
++    nsCacheServiceAutoLock lock(LOCK_TELEM(NSCACHEENTRYDESCRIPTOR_SETLASTFETCHED));
++    if (!mCacheEntry)  return NS_ERROR_NOT_AVAILABLE;
++
++    mCacheEntry->SetLastFetched(lastFetched);
++    mCacheEntry->MarkEntryDirty();
++    return NS_OK;
++}
++
++
+ NS_IMETHODIMP nsCacheEntryDescriptor::IsStreamBased(bool *result)
+ {
+     NS_ENSURE_ARG_POINTER(result);
+     nsCacheServiceAutoLock lock(LOCK_TELEM(NSCACHEENTRYDESCRIPTOR_ISSTREAMBASED));
+     if (!mCacheEntry)  return NS_ERROR_NOT_AVAILABLE;
+ 
+     *result = mCacheEntry->IsStreamData();
+     return NS_OK;
+diff --git a/netwerk/cache/nsICacheEntryDescriptor.idl b/netwerk/cache/nsICacheEntryDescriptor.idl
+--- a/netwerk/cache/nsICacheEntryDescriptor.idl
++++ b/netwerk/cache/nsICacheEntryDescriptor.idl
+@@ -10,26 +10,39 @@
+ interface nsISimpleEnumerator;
+ interface nsICacheListener;
+ interface nsIInputStream;
+ interface nsIOutputStream;
+ interface nsIFile;
+ interface nsICacheMetaDataVisitor;
+ 
+ 
+-[scriptable, uuid(90b17d31-46aa-4fb1-a206-473c966cbc18)]
++[scriptable, uuid(c5901169-94d7-45fd-abce-c34b682ae6e1)]
+ interface nsICacheEntryDescriptor : nsICacheEntryInfo
+ {
+     /**
+      * Set the time at which the cache entry should be considered invalid (in
+      * seconds since the Epoch).
+      */
+     void setExpirationTime(in uint32_t expirationTime);
+ 
+     /**
++     * Manually set the fetched time. This is needed when the cache entry is not
++     * being loaded from the network but from a previously downloaded repository.
++     */
++    void setLastFetched(in uint32_t fetchedTime);
++
++    /**
++     * Manually set the last modified time. This is needed when the cache entry
++     * is not being loaded from the network but from a previously downloaded
++     * repository.
++     */
++    void setLastModified(in uint32_t modifiedTime);
++
++    /**
+      * Set the cache entry data size.  This will fail if the cache entry
+      * IS stream based.
+      */
+     void setDataSize(in unsigned long size);
+ 
+     /**
+      * Open blocking input stream to cache data.  This will fail if the cache
+      * entry IS NOT stream based.  Use the stream transport service to
+diff --git a/netwerk/cache2/CacheEntry.cpp b/netwerk/cache2/CacheEntry.cpp
+--- a/netwerk/cache2/CacheEntry.cpp
++++ b/netwerk/cache2/CacheEntry.cpp
+@@ -1016,16 +1016,36 @@ NS_IMETHODIMP CacheEntry::SetExpirationT
+   nsresult rv = mFile->SetExpirationTime(aExpirationTime);
+   NS_ENSURE_SUCCESS(rv, rv);
+ 
+   // Aligned assignment, thus atomic.
+   mSortingExpirationTime = aExpirationTime;
+   return NS_OK;
+ }
+ 
++NS_IMETHODIMP CacheEntry::SetLastModified(uint32_t aLastModified)
++{
++  NS_ENSURE_SUCCESS(mFileStatus, NS_ERROR_NOT_AVAILABLE);
++
++  nsresult rv = mFile->SetLastModified(aLastModified);
++  NS_ENSURE_SUCCESS(rv, rv);
++
++  return NS_OK;
++}
++
++NS_IMETHODIMP CacheEntry::SetLastFetched(uint32_t aLastFetched)
++{
++  NS_ENSURE_SUCCESS(mFileStatus, NS_ERROR_NOT_AVAILABLE);
++
++  nsresult rv = mFile->SetLastFetched(aLastFetched);
++  NS_ENSURE_SUCCESS(rv, rv);
++
++  return NS_OK;
++}
++
+ NS_IMETHODIMP CacheEntry::OpenInputStream(int64_t offset, nsIInputStream * *_retval)
+ {
+   LOG(("CacheEntry::OpenInputStream [this=%p]", this));
+ 
+   NS_ENSURE_SUCCESS(mFileStatus, NS_ERROR_NOT_AVAILABLE);
+ 
+   nsresult rv;
+ 
+diff --git a/netwerk/cache2/CacheFile.cpp b/netwerk/cache2/CacheFile.cpp
+--- a/netwerk/cache2/CacheFile.cpp
++++ b/netwerk/cache2/CacheFile.cpp
+@@ -911,16 +911,40 @@ CacheFile::SetExpirationTime(uint32_t aE
+ 
+   if (mHandle && !mHandle->IsDoomed())
+     CacheFileIOManager::UpdateIndexEntry(mHandle, nullptr, &aExpirationTime);
+ 
+   return mMetadata->SetExpirationTime(aExpirationTime);
+ }
+ 
+ nsresult
++CacheFile::SetLastFetched(uint32_t aLastFetched)
++{
++  CacheFileAutoLock lock(this);
++  MOZ_ASSERT(mMetadata);
++  NS_ENSURE_TRUE(mMetadata, NS_ERROR_UNEXPECTED);
++
++  PostWriteTimer();
++
++  return mMetadata->SetLastFetched(aLastFetched);
++}
++
++nsresult
++CacheFile::SetLastModified(uint32_t aLastModified)
++{
++  CacheFileAutoLock lock(this);
++  MOZ_ASSERT(mMetadata);
++  NS_ENSURE_TRUE(mMetadata, NS_ERROR_UNEXPECTED);
++
++  PostWriteTimer();
++
++  return mMetadata->SetLastModified(aLastModified);
++}
++
++nsresult
+ CacheFile::GetExpirationTime(uint32_t *_retval)
+ {
+   CacheFileAutoLock lock(this);
+   MOZ_ASSERT(mMetadata);
+   NS_ENSURE_TRUE(mMetadata, NS_ERROR_UNEXPECTED);
+ 
+   return mMetadata->GetExpirationTime(_retval);
+ }
+diff --git a/netwerk/cache2/CacheFile.h b/netwerk/cache2/CacheFile.h
+--- a/netwerk/cache2/CacheFile.h
++++ b/netwerk/cache2/CacheFile.h
+@@ -88,17 +88,19 @@ public:
+   nsresult SetElement(const char *aKey, const char *aValue);
+   nsresult VisitMetaData(nsICacheEntryMetaDataVisitor *aVisitor);
+   nsresult ElementsSize(uint32_t *_retval);
+   nsresult SetExpirationTime(uint32_t aExpirationTime);
+   nsresult GetExpirationTime(uint32_t *_retval);
+   nsresult SetFrecency(uint32_t aFrecency);
+   nsresult GetFrecency(uint32_t *_retval);
+   nsresult GetLastModified(uint32_t *_retval);
++  nsresult SetLastModified(uint32_t aLastModified);
+   nsresult GetLastFetched(uint32_t *_retval);
++  nsresult SetLastFetched(uint32_t aLastFetched);
+   nsresult GetFetchCount(uint32_t *_retval);
+   // Called by upper layers to indicated the entry has been fetched,
+   // i.e. delivered to the consumer.
+   nsresult OnFetched();
+ 
+   bool DataSize(int64_t* aSize);
+   void Key(nsACString& aKey) { aKey = mKey; }
+   bool IsDoomed();
+diff --git a/netwerk/cache2/CacheFileMetadata.cpp b/netwerk/cache2/CacheFileMetadata.cpp
+--- a/netwerk/cache2/CacheFileMetadata.cpp
++++ b/netwerk/cache2/CacheFileMetadata.cpp
+@@ -49,16 +49,18 @@ CacheFileMetadata::CacheFileMetadata(Cac
+   , mBufSize(0)
+   , mWriteBuf(nullptr)
+   , mElementsSize(0)
+   , mIsDirty(false)
+   , mAnonymous(false)
+   , mInBrowser(false)
+   , mAllocExactSize(false)
+   , mFirstRead(true)
++  , mKeepLastFetched(false)
++  , mKeepLastModified(false)
+   , mAppId(nsILoadContextInfo::NO_APP_ID)
+ {
+   LOG(("CacheFileMetadata::CacheFileMetadata() [this=%p, handle=%p, key=%s]",
+        this, aHandle, PromiseFlatCString(aKey).get()));
+ 
+   MOZ_COUNT_CTOR(CacheFileMetadata);
+   memset(&mMetaHdr, 0, sizeof(CacheFileMetadataHeader));
+   mMetaHdr.mVersion = kCacheEntryVersion;
+@@ -546,23 +548,46 @@ CacheFileMetadata::SetFrecency(uint32_t 
+ nsresult
+ CacheFileMetadata::GetFrecency(uint32_t *_retval)
+ {
+   *_retval = mMetaHdr.mFrecency;
+   return NS_OK;
+ }
+ 
+ nsresult
++CacheFileMetadata::SetLastModified(uint32_t aLastModified)
++{
++  LOG(("CacheFileMetadata::SetLastModified() [this=%p, lastModified=%d]",
++       this, aLastModified));
++
++  MarkDirty(false);
++  mMetaHdr.mLastModified = aLastModified;
++  mKeepLastModified = true;
++  return NS_OK;
++}
++nsresult
+ CacheFileMetadata::GetLastModified(uint32_t *_retval)
+ {
+   *_retval = mMetaHdr.mLastModified;
+   return NS_OK;
+ }
+ 
+ nsresult
++CacheFileMetadata::SetLastFetched(uint32_t aLastFetched)
++{
++  LOG(("CacheFileMetadata::SetLastFetched() [this=%p, lastFetched=%d]",
++       this, aLastFetched));
++
++  MarkDirty(false);
++  mMetaHdr.mLastFetched = aLastFetched;
++  mKeepLastFetched = true;
++  return NS_OK;
++}
++
++nsresult
+ CacheFileMetadata::GetLastFetched(uint32_t *_retval)
+ {
+   *_retval = mMetaHdr.mLastFetched;
+   return NS_OK;
+ }
+ 
+ nsresult
+ CacheFileMetadata::GetFetchCount(uint32_t *_retval)
+@@ -571,28 +596,32 @@ CacheFileMetadata::GetFetchCount(uint32_
+   return NS_OK;
+ }
+ 
+ nsresult
+ CacheFileMetadata::OnFetched()
+ {
+   MarkDirty(false);
+ 
+-  mMetaHdr.mLastFetched = NOW_SECONDS();
++  if (!mKeepLastFetched) {
++    mMetaHdr.mLastFetched = NOW_SECONDS();
++  }
++  mKeepLastFetched = false;
+   ++mMetaHdr.mFetchCount;
+   return NS_OK;
+ }
+ 
+ void
+ CacheFileMetadata::MarkDirty(bool aUpdateLastModified)
+ {
+   mIsDirty = true;
+-  if (aUpdateLastModified) {
++  if (!mKeepLastModified && aUpdateLastModified) {
+     mMetaHdr.mLastModified = NOW_SECONDS();
+   }
++  mKeepLastModified = mKeepLastModified && !aUpdateLastModified;
+ }
+ 
+ nsresult
+ CacheFileMetadata::OnFileOpened(CacheFileHandle *aHandle, nsresult aResult)
+ {
+   MOZ_CRASH("CacheFileMetadata::OnFileOpened should not be called!");
+   return NS_ERROR_UNEXPECTED;
+ }
+diff --git a/netwerk/cache2/CacheFileMetadata.h b/netwerk/cache2/CacheFileMetadata.h
+--- a/netwerk/cache2/CacheFileMetadata.h
++++ b/netwerk/cache2/CacheFileMetadata.h
+@@ -135,17 +135,19 @@ public:
+ 
+   CacheHash::Hash16_t GetHash(uint32_t aIndex);
+   nsresult            SetHash(uint32_t aIndex, CacheHash::Hash16_t aHash);
+ 
+   nsresult SetExpirationTime(uint32_t aExpirationTime);
+   nsresult GetExpirationTime(uint32_t *_retval);
+   nsresult SetFrecency(uint32_t aFrecency);
+   nsresult GetFrecency(uint32_t *_retval);
++  nsresult SetLastModified(uint32_t aLastModified);
+   nsresult GetLastModified(uint32_t *_retval);
++  nsresult SetLastFetched(uint32_t aLastModified);
+   nsresult GetLastFetched(uint32_t *_retval);
+   nsresult GetFetchCount(uint32_t *_retval);
+   // Called by upper layers to indicate the entry this metadata belongs
+   // with has been fetched, i.e. delivered to the consumer.
+   nsresult OnFetched();
+ 
+   int64_t  Offset() { return mOffset; }
+   uint32_t ElementsSize() { return mElementsSize; }
+@@ -181,21 +183,23 @@ private:
+   uint32_t                            mHashCount;
+   int64_t                             mOffset;
+   char                               *mBuf; // used for parsing, then points
+                                             // to elements
+   uint32_t                            mBufSize;
+   char                               *mWriteBuf;
+   CacheFileMetadataHeader             mMetaHdr;
+   uint32_t                            mElementsSize;
+-  bool                                mIsDirty        : 1;
+-  bool                                mAnonymous      : 1;
+-  bool                                mInBrowser      : 1;
+-  bool                                mAllocExactSize : 1;
+-  bool                                mFirstRead      : 1;
++  bool                                mIsDirty           : 1;
++  bool                                mAnonymous         : 1;
++  bool                                mInBrowser         : 1;
++  bool                                mAllocExactSize    : 1;
++  bool                                mFirstRead         : 1;
++  bool                                mKeepLastFetched   : 1;
++  bool                                mKeepLastModified  : 1;
+   mozilla::TimeStamp                  mReadStart;
+   uint32_t                            mAppId;
+   nsCOMPtr<CacheFileMetadataListener> mListener;
+ };
+ 
+ 
+ } // net
+ } // mozilla
+diff --git a/netwerk/cache2/OldWrappers.h b/netwerk/cache2/OldWrappers.h
+--- a/netwerk/cache2/OldWrappers.h
++++ b/netwerk/cache2/OldWrappers.h
+@@ -30,16 +30,26 @@ public:
+   NS_DECL_THREADSAFE_ISUPPORTS
+ 
+   // nsICacheEntryDescriptor
+   NS_IMETHOD SetExpirationTime(uint32_t expirationTime) MOZ_OVERRIDE
+   {
+     return !mOldDesc ? NS_ERROR_NULL_POINTER :
+                        mOldDesc->SetExpirationTime(expirationTime);
+   }
++  NS_IMETHOD SetLastFetched(uint32_t lastFetched) MOZ_OVERRIDE
++  {
++    return !mOldDesc ? NS_ERROR_NULL_POINTER :
++                       mOldDesc->SetLastFetched(lastFetched);
++  }
++  NS_IMETHOD SetLastModified(uint32_t lastModified) MOZ_OVERRIDE
++  {
++    return !mOldDesc ? NS_ERROR_NULL_POINTER :
++                       mOldDesc->SetLastModified(lastModified);
++  }
+   nsresult OpenInputStream(uint32_t offset, nsIInputStream * *_retval)
+   {
+     return !mOldDesc ? NS_ERROR_NULL_POINTER :
+                        mOldDesc->OpenInputStream(offset, _retval);
+   }
+   nsresult OpenOutputStream(uint32_t offset, nsIOutputStream * *_retval)
+   {
+     return !mOldDesc ? NS_ERROR_NULL_POINTER :
+diff --git a/netwerk/cache2/nsICacheEntry.idl b/netwerk/cache2/nsICacheEntry.idl
+--- a/netwerk/cache2/nsICacheEntry.idl
++++ b/netwerk/cache2/nsICacheEntry.idl
+@@ -11,17 +11,17 @@ interface nsICacheEntryDoomCallback;
+ // ************************ REMOVE **********************
+ typedef long nsCacheAccessMode;
+ typedef long nsCacheStoragePolicy;
+ 
+ interface nsICacheListener;
+ interface nsIFile;
+ interface nsICacheEntryMetaDataVisitor;
+ 
+-[scriptable, uuid(607c2a2c-0a48-40b9-a956-8cf2bb9857cf)]
++[scriptable, uuid(e5321a37-21cf-45d1-97d6-513c06e208a0)]
+ interface nsICacheEntry : nsISupports
+ {
+   /**
+    * Placeholder for the initial value of expiration time.
+    */
+   const unsigned long NO_EXPIRATION_TIME = 0xFFFFFFFF;
+ 
+   /**
+@@ -58,16 +58,29 @@ interface nsICacheEntry : nsISupports
+ 
+   /**
+    * Set the time at which the cache entry should be considered invalid (in
+    * seconds since the Epoch).
+    */
+   void setExpirationTime(in uint32_t expirationTime);
+ 
+   /**
++   * Manually set the fetched time. This is needed when the cache entry is not
++   * being loaded from the network but from a previously downloaded repository.
++   */
++  void setLastFetched(in uint32_t fetchedTime);
++
++  /**
++   * Manually set the last modified time. This is needed when the cache entry is
++   * not being loaded from the network but from a previously downloaded
++   * repository.
++   */
++  void setLastModified(in uint32_t modifiedTime);
++
++  /**
+    * This method is intended to override the per-spec cache validation
+    * decisions for a duration specified in seconds. The current state can
+    * be examined with isForcedValid (see below). This value is not persisted,
+    * so it will not survive session restart. Cache entries that are forced valid
+    * will not be evicted from the cache for the duration of forced validity.
+    * This means that there is a potential problem if the number of forced valid
+    * entries grows to take up more space than the cache size allows.
+    *
 diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
 --- a/security/apps/AppTrustDomain.cpp
 +++ b/security/apps/AppTrustDomain.cpp
@@ -1031,3 +1662,54 @@ z__IIpzb~I*Qdz)eFe#GDH>SePl`V^-vCZbI^2VjEJKX+hO~^O3>YZU`lsI*x%rXY8
 zy!(geP4Y03X<5uGb8wm@<D6=b1NjRw1TO!buv>)v%699CeZ1ALGM80y>t4EYmF2}U
 gg?m>ndOTk7s5fBm=^3vlU%g-T?vImqn(eh_05ESw!vFvP
 
+diff --git a/toolkit/components/telemetry/Histograms.json b/toolkit/components/telemetry/Histograms.json
+--- a/toolkit/components/telemetry/Histograms.json
++++ b/toolkit/components/telemetry/Histograms.json
+@@ -2048,16 +2048,23 @@
+   },
+   "CACHE_SERVICE_LOCK_WAIT_MAINTHREAD_NSCACHEENTRYDESCRIPTOR_GETLASTMODIFIED": {
+     "expires_in_version": "never",
+     "kind": "exponential",
+     "high": "10 * 1000",
+     "n_buckets": 50,
+     "description": "Time spent waiting on the cache service lock (ms) on the main thread in NSCACHEENTRYDESCRIPTOR_GETLASTMODIFIED"
+   },
++  "CACHE_SERVICE_LOCK_WAIT_MAINTHREAD_NSCACHEENTRYDESCRIPTOR_SETLASTMODIFIED": {
++    "expires_in_version": "never",
++    "kind": "exponential",
++    "high": "10 * 1000",
++    "n_buckets": 50,
++    "description": "Time spent waiting on the cache service lock (ms) on the main thread in NSCACHEENTRYDESCRIPTOR_SETLASTMODIFIED"
++  },
+   "CACHE_SERVICE_LOCK_WAIT_MAINTHREAD_NSCACHEENTRYDESCRIPTOR_GETEXPIRATIONTIME": {
+     "expires_in_version": "never",
+     "kind": "exponential",
+     "high": "10 * 1000",
+     "n_buckets": 50,
+     "description": "Time spent waiting on the cache service lock (ms) on the main thread in NSCACHEENTRYDESCRIPTOR_GETEXPIRATIONTIME"
+   },
+   "CACHE_SERVICE_LOCK_WAIT_MAINTHREAD_NSCACHEENTRYDESCRIPTOR_GETKEY": {
+@@ -2104,16 +2111,23 @@
+   },
+   "CACHE_SERVICE_LOCK_WAIT_MAINTHREAD_NSCACHEENTRYDESCRIPTOR_GETLASTFETCHED": {
+     "expires_in_version": "never",
+     "kind": "exponential",
+     "high": "10 * 1000",
+     "n_buckets": 50,
+     "description": "Time spent waiting on the cache service lock (ms) on the main thread in NSCACHEENTRYDESCRIPTOR_GETLASTFETCHED"
+   },
++  "CACHE_SERVICE_LOCK_WAIT_MAINTHREAD_NSCACHEENTRYDESCRIPTOR_SETLASTFETCHED": {
++    "expires_in_version": "never",
++    "kind": "exponential",
++    "high": "10 * 1000",
++    "n_buckets": 50,
++    "description": "Time spent waiting on the cache service lock (ms) on the main thread in NSCACHEENTRYDESCRIPTOR_SETLASTFETCHED"
++  },
+   "CACHE_SERVICE_LOCK_WAIT_MAINTHREAD_NSCACHEENTRYDESCRIPTOR_GETCLIENTID": {
+     "expires_in_version": "never",
+     "kind": "exponential",
+     "high": "10 * 1000",
+     "n_buckets": 50,
+     "description": "Time spent waiting on the cache service lock (ms) on the main thread in NSCACHEENTRYDESCRIPTOR_GETCLIENTID"
+   },
+   "CACHE_SERVICE_LOCK_WAIT_MAINTHREAD_NSBLOCKONCACHETHREADEVENT_RUN": {
