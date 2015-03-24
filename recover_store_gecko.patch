@@ -1508,17 +1508,17 @@ diff --git a/netwerk/cache2/OldWrappers.h b/netwerk/cache2/OldWrappers.h
    NS_DECL_THREADSAFE_ISUPPORTS
  
    // nsICacheEntryDescriptor
-   NS_IMETHOD SetExpirationTime(uint32_t expirationTime) MOZ_OVERRIDE
+   NS_IMETHOD SetExpirationTime(uint32_t expirationTime) override
    {
      return !mOldDesc ? NS_ERROR_NULL_POINTER :
                         mOldDesc->SetExpirationTime(expirationTime);
    }
-+  NS_IMETHOD SetLastFetched(uint32_t lastFetched) MOZ_OVERRIDE
++  NS_IMETHOD SetLastFetched(uint32_t lastFetched) override
 +  {
 +    return !mOldDesc ? NS_ERROR_NULL_POINTER :
 +                       mOldDesc->SetLastFetched(lastFetched);
 +  }
-+  NS_IMETHOD SetLastModified(uint32_t lastModified) MOZ_OVERRIDE
++  NS_IMETHOD SetLastModified(uint32_t lastModified) override
 +  {
 +    return !mOldDesc ? NS_ERROR_NULL_POINTER :
 +                       mOldDesc->SetLastModified(lastModified);
