@@ -1,5 +1,5 @@
 # HG changeset patch
-# Parent 61692e61bb69d9801d3f27f216116eb4a70be8d1
+# Parent 7a84e575538aca95d727329c191dec8b5468332a
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
 * * *
@@ -52,7 +52,7 @@ diff --git a/b2g/confvars.sh b/b2g/confvars.sh
 diff --git a/config/external/nss/Makefile.in b/config/external/nss/Makefile.in
 --- a/config/external/nss/Makefile.in
 +++ b/config/external/nss/Makefile.in
-@@ -257,16 +257,20 @@ DEFAULT_GMAKE_FLAGS += MODULE_INCLUDES='
+@@ -258,16 +258,20 @@ DEFAULT_GMAKE_FLAGS += MODULE_INCLUDES='
  
  # Work around NSS's MAKE_OBJDIR being racy. See bug #836220
  DEFAULT_GMAKE_FLAGS += MAKE_OBJDIR='$$(INSTALL) -D $$(OBJDIR)'
@@ -698,7 +698,7 @@ new file mode 100644
 diff --git a/configure.in b/configure.in
 --- a/configure.in
 +++ b/configure.in
-@@ -7531,16 +7531,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
+@@ -7538,16 +7538,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
      MOZ_B2G_CAMERA=1,
      MOZ_B2G_CAMERA= )
  if test -n "$MOZ_B2G_CAMERA"; then
@@ -724,6 +724,32 @@ diff --git a/configure.in b/configure.in
  AC_SUBST(MOZ_PAY)
  
  dnl ========================================================
+diff --git a/dom/apps/InterAppCommService.jsm b/dom/apps/InterAppCommService.jsm
+--- a/dom/apps/InterAppCommService.jsm
++++ b/dom/apps/InterAppCommService.jsm
+@@ -338,20 +338,20 @@ this.InterAppCommService = {
+   },
+ 
+   _matchRules: function(aPubAppManifestURL, aPubRules,
+                         aSubAppManifestURL, aSubRules) {
+     let pubApp = appsService.getAppByManifestURL(aPubAppManifestURL);
+     let subApp = appsService.getAppByManifestURL(aSubAppManifestURL);
+ 
+     let isPubAppCertified =
+-      (pubApp.appStatus == Ci.nsIPrincipal.APP_STATUS_CERTIFIED);
++      (pubApp.appStatus == Ci.nsIPrincipal.APP_STATUS_CERTIFIED || true);
+ 
+     let isSubAppCertified =
+-      (subApp.appStatus == Ci.nsIPrincipal.APP_STATUS_CERTIFIED);
++      (subApp.appStatus == Ci.nsIPrincipal.APP_STATUS_CERTIFIED || true);
+ 
+     // TODO Bug 907068 In the initiative step, we only expose this API to
+     // certified apps to meet the time line. Eventually, we need to make
+     // it available for the non-certified apps as well. For now, only the
+     // certified apps can match the rules.
+     if (!isPubAppCertified || !isSubAppCertified) {
+       if (DEBUG) {
+         debug("Only certified apps are allowed to do connections.");
 diff --git a/dom/apps/OfflineCacheInstaller.jsm b/dom/apps/OfflineCacheInstaller.jsm
 --- a/dom/apps/OfflineCacheInstaller.jsm
 +++ b/dom/apps/OfflineCacheInstaller.jsm
@@ -1090,7 +1116,26 @@ diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUti
  
        if (!isValid) {
          debug("White list doesn't contain all required directives!");
-@@ -196,17 +205,18 @@ this.TrustedHostedAppsUtils = {
+@@ -134,16 +143,18 @@ this.TrustedHostedAppsUtils = {
+ 
+   /**
+    * Verify that the given csp is valid:
+    *  1. contains required directives "script-src" and "style-src"
+    *  2. required directives contain only "https" URLs
+    *  3. domains of the restricted sources exist in the CA pinning database
+    */
+   verifyCSPWhiteList: function(aCsp) {
++    return true;
++
+     let domainWhitelist = this.getCSPWhiteList(aCsp);
+     if (!domainWhitelist.valid) {
+       debug("TRUSTED_APPLICATION_WHITELIST_PARSING_FAILED");
+       return false;
+     }
+ 
+     if (!domainWhitelist.list.every(aUrl => this.isHostPinned(aUrl))) {
+       debug("TRUSTED_APPLICATION_WHITELIST_VALIDATION_FAILED");
+@@ -196,17 +207,18 @@ this.TrustedHostedAppsUtils = {
                   .getService(Ci.nsIX509CertDB);
      } catch (e) {
        debug("nsIX509CertDB error: " + e);
@@ -1110,7 +1155,7 @@ diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUti
                                                principal,
                                                null,      // aTriggeringPrincipal
                                                Ci.nsILoadInfo.SEC_NORMAL,
-@@ -278,12 +288,15 @@ this.TrustedHostedAppsUtils = {
+@@ -278,12 +290,15 @@ this.TrustedHostedAppsUtils = {
        if (!this.isHostPinned(aApp.manifestURL)) {
          reject("TRUSTED_APPLICATION_HOST_CERTIFICATE_INVALID");
          return;
@@ -1143,7 +1188,7 @@ diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
 +MOZ_B2G_CERTDATA=1
 +
  # Enable reading list service integration.
- #MOZ_ANDROID_READING_LIST_SERVICE=1
+ MOZ_ANDROID_READING_LIST_SERVICE=1
  
  # Enable runtime locale switching.
  MOZ_LOCALE_SWITCHER=1
@@ -1665,7 +1710,7 @@ gg?m>ndOTk7s5fBm=^3vlU%g-T?vImqn(eh_05ESw!vFvP
 diff --git a/toolkit/components/telemetry/Histograms.json b/toolkit/components/telemetry/Histograms.json
 --- a/toolkit/components/telemetry/Histograms.json
 +++ b/toolkit/components/telemetry/Histograms.json
-@@ -2048,16 +2048,23 @@
+@@ -2059,16 +2059,23 @@
    },
    "CACHE_SERVICE_LOCK_WAIT_MAINTHREAD_NSCACHEENTRYDESCRIPTOR_GETLASTMODIFIED": {
      "expires_in_version": "never",
@@ -1689,7 +1734,7 @@ diff --git a/toolkit/components/telemetry/Histograms.json b/toolkit/components/t
      "description": "Time spent waiting on the cache service lock (ms) on the main thread in NSCACHEENTRYDESCRIPTOR_GETEXPIRATIONTIME"
    },
    "CACHE_SERVICE_LOCK_WAIT_MAINTHREAD_NSCACHEENTRYDESCRIPTOR_GETKEY": {
-@@ -2104,16 +2111,23 @@
+@@ -2115,16 +2122,23 @@
    },
    "CACHE_SERVICE_LOCK_WAIT_MAINTHREAD_NSCACHEENTRYDESCRIPTOR_GETLASTFETCHED": {
      "expires_in_version": "never",
