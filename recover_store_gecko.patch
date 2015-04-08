@@ -1,5 +1,5 @@
 # HG changeset patch
-# Parent 7a84e575538aca95d727329c191dec8b5468332a
+# Parent 21345a9adcee2be868e5b99faaa3dadf56a013e6
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
 * * *
@@ -8,18 +8,17 @@ Bug 1144689 - Allow setting manually a fetch time and modified time for cache en
 diff --git a/b2g/app/b2g.js b/b2g/app/b2g.js
 --- a/b2g/app/b2g.js
 +++ b/b2g/app/b2g.js
-@@ -414,17 +414,18 @@ pref("content.ime.strict_policy", true);
+@@ -415,17 +415,17 @@ pref("content.ime.strict_policy", true);
  // $ adb shell setprop log.redirect-stdio true
  // $ adb shell start
  pref("browser.dom.window.dump.enabled", false);
  
  // Default Content Security Policy to apply to certified apps.
  // If you change this CSP, make sure to update the fast path in nsCSPService.cpp
- pref("security.apps.certified.CSP.default", "default-src *; script-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline' app://theme.gaiamobile.org");
+ pref("security.apps.certified.CSP.default", "default-src * data: blob:; script-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline' app://theme.gaiamobile.org");
  // Default Content Security Policy to apply to trusted apps.
--pref("security.apps.trusted.CSP.default", "default-src *; object-src 'none'; frame-src 'none'");
-+pref("security.apps.trusted.CSP.default", "default-src *; object-src 'none'; frame-src 'none'; style-src 'self' 'unsafe-inline'");
-+
+-pref("security.apps.trusted.CSP.default", "default-src * data: blob:; object-src 'none'; frame-src 'none'");
++pref("security.apps.trusted.CSP.default", "default-src * data: blob:; object-src 'none'; frame-src 'none'; style-src 'self' 'unsafe-inline'");
  
  // Temporarily force-enable GL compositing.  This is default-disabled
  // deep within the bowels of the widgetry system.  Remove me when GL
@@ -698,7 +697,7 @@ new file mode 100644
 diff --git a/configure.in b/configure.in
 --- a/configure.in
 +++ b/configure.in
-@@ -7538,16 +7538,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
+@@ -7537,16 +7537,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
      MOZ_B2G_CAMERA=1,
      MOZ_B2G_CAMERA= )
  if test -n "$MOZ_B2G_CAMERA"; then
@@ -750,202 +749,6 @@ diff --git a/dom/apps/InterAppCommService.jsm b/dom/apps/InterAppCommService.jsm
      if (!isPubAppCertified || !isSubAppCertified) {
        if (DEBUG) {
          debug("Only certified apps are allowed to do connections.");
-diff --git a/dom/apps/OfflineCacheInstaller.jsm b/dom/apps/OfflineCacheInstaller.jsm
---- a/dom/apps/OfflineCacheInstaller.jsm
-+++ b/dom/apps/OfflineCacheInstaller.jsm
-@@ -41,40 +41,47 @@ function enableOfflineCacheForApp(aPrinc
-   Services.perms.addFromPrincipal(aPrincipal, 'offline-app',
-                                   Ci.nsIPermissionManager.ALLOW_ACTION);
-   // Prevent cache from being evicted:
-   Services.perms.addFromPrincipal(aPrincipal, 'pin-app',
-                                   Ci.nsIPermissionManager.ALLOW_ACTION);
- }
- 
- 
--function storeCache(applicationCache, url, file, itemType) {
-+function storeCache(applicationCache, url, file, itemType, metadata) {
-   let storage =
-     Services.cache2.appCacheStorage(LoadContextInfo.default, applicationCache);
-   let uri = Services.io.newURI(url, null, null);
-   storage.asyncOpenURI(uri, "", nsICacheStorage.OPEN_TRUNCATE, {
-     onCacheEntryAvailable:
-       function (cacheEntry, isNew, appCache, result) {
-         cacheEntry.setMetaDataElement('request-method', 'GET');
-         cacheEntry.setMetaDataElement('response-head', 'HTTP/1.1 200 OK\r\n');
- 
-         let outputStream = cacheEntry.openOutputStream(0);
- 
--        // Input-Output stream machinery in order to push nsIFile content into cache
-+        // Input-Output stream machinery in order to push nsIFile content into
-+        // cache
-         let inputStream = Cc['@mozilla.org/network/file-input-stream;1']
-                             .createInstance(Ci.nsIFileInputStream);
-         inputStream.init(file, 1, -1, null);
--        let bufferedOutputStream = Cc['@mozilla.org/network/buffered-output-stream;1']
--                                     .createInstance(Ci.nsIBufferedOutputStream);
-+        let bufferedOutputStream =
-+          Cc['@mozilla.org/network/buffered-output-stream;1']
-+            .createInstance(Ci.nsIBufferedOutputStream);
-         bufferedOutputStream.init(outputStream, 1024);
-         bufferedOutputStream.writeFrom(inputStream, inputStream.available());
-         bufferedOutputStream.flush();
-         bufferedOutputStream.close();
-         inputStream.close();
- 
-+        metadata && metadata.lastModified &&
-+          cacheEntry.setLastModified(parseInt(metadata.lastModified));
-+        metadata && metadata.lastFetched &&
-+          cacheEntry.setLastFetched(parseInt(metadata.lastFetched));
-+        cacheEntry.setExpirationTime(0);
-         cacheEntry.markValid();
-         debug (file.path + ' -> ' + url + ' (' + itemType + ')');
-         applicationCache.markEntry(url, itemType);
-         cacheEntry.close();
-       }
-   });
- }
- 
-@@ -201,77 +208,98 @@ function parseAppCache(app, path, conten
-   };
- }
- 
- function installCache(app) {
-   if (!app.cachePath) {
-     return;
-   }
- 
--  let cacheDir = makeFile(app.cachePath)
-+  let cacheDir = makeFile(app.cachePath);
-   cacheDir.append(app.appId);
-+
-+  let resourcesMetadata = cacheDir.clone();
-+  resourcesMetadata.append('resources_metadata.json');
-+
-   cacheDir.append('cache');
-   if (!cacheDir.exists())
-     return;
- 
-   let cacheManifest = cacheDir.clone();
-   cacheManifest.append('manifest.appcache');
-   if (!cacheManifest.exists())
-     return;
- 
-   let principal = Services.scriptSecurityManager.getAppCodebasePrincipal(
--                    app.origin, app.localId, false);
-+      app.origin, app.localId, false);
- 
--  enableOfflineCacheForApp(principal);
-+  // If the build has been correctly configured, this should not happen!
-+  // If we install the cache anyway, it won't be updateable. If we don't install
-+  // it, the application won't be useable offline.
-+  let metadataLoaded;
-+  if (!resourcesMetadata.exists()) {
-+    // Not debug, since this is something that should be logged always!
-+    dump("OfflineCacheInstaller: App " + app.appId + " does have an app cache" +
-+         " but does not have a resources_metadata.json file!");
-+    metadataLoaded = Promise.resolve({});
-+  } else {
-+    metadataLoaded = new Promise(
-+      (resolve, reject) =>
-+        readFile(resourcesMetadata, principal, content => resolve(JSON.parse(content))));
-+  }
- 
--  // Get the url for the manifest.
--  let appcacheURL = app.appcache_path;
-+  metadataLoaded.then(function(metadata) {
-+    enableOfflineCacheForApp(principal);
- 
--  // The group ID contains application id and 'f' for not being hosted in
--  // a browser element, but a mozbrowser iframe.
--  // See netwerk/cache/nsDiskCacheDeviceSQL.cpp: AppendJARIdentifier
--  let groupID = appcacheURL + '#' + app.localId+ '+f';
--  let applicationCache = applicationCacheService.createApplicationCache(groupID);
--  applicationCache.activate();
-+    // Get the url for the manifest.
-+    let appcacheURL = app.appcache_path;
- 
--  readFile(cacheManifest, principal, function readAppCache(content) {
--    let entries = parseAppCache(app, cacheManifest.path, content);
-+    // The group ID contains application id and 'f' for not being hosted in
-+    // a browser element, but a mozbrowser iframe.
-+    // See netwerk/cache/nsDiskCacheDeviceSQL.cpp: AppendJARIdentifier
-+    let groupID = appcacheURL + '#' + app.localId+ '+f';
-+    let applicationCache = applicationCacheService.createApplicationCache(groupID);
-+    applicationCache.activate();
- 
--    entries.urls.forEach(function processCachedFile(url) {
--      // Get this nsIFile from cache folder for this URL
--      // We have absolute urls, so remove the origin part to locate the
--      // files.
--      let path = url.replace(app.origin.spec, '');
--      let file = cacheDir.clone();
--      let paths = path.split('/');
--      paths.forEach(file.append);
-+    readFile(cacheManifest, principal, function readAppCache(content) {
-+      let entries = parseAppCache(app, cacheManifest.path, content);
- 
--      if (!file.exists()) {
--        let msg = 'File ' + file.path + ' exists in the manifest but does ' +
--                  'not points to a real file.';
--        throw new Error(msg);
--      }
-+      entries.urls.forEach(function processCachedFile(url) {
-+        // Get this nsIFile from cache folder for this URL
-+        // We have absolute urls, so remove the origin part to locate the
-+        // files.
-+        let path = url.replace(app.origin.spec, '');
-+        let file = cacheDir.clone();
-+        let paths = path.split('/');
-+        paths.forEach(file.append);
- 
--      let itemType = nsIApplicationCache.ITEM_EXPLICIT;
--      if (entries.fallbacks.indexOf(url) > -1) {
--        debug('add fallback: ' + url + '\n');
--        itemType |= nsIApplicationCache.ITEM_FALLBACK;
--      }
--      storeCache(applicationCache, url, file, itemType);
-+        if (!file.exists()) {
-+          let msg = 'File ' + file.path + ' exists in the manifest but does ' +
-+                    'not points to a real file.';
-+          throw new Error(msg);
-+        }
-+
-+        let itemType = nsIApplicationCache.ITEM_EXPLICIT;
-+        if (entries.fallbacks.indexOf(url) > -1) {
-+          debug('add fallback: ' + url + '\n');
-+          itemType |= nsIApplicationCache.ITEM_FALLBACK;
-+        }
-+        storeCache(applicationCache, url, file, itemType, metadata[path]);
-+      });
-+
-+      let array = new MutableArray();
-+      entries.namespaces.forEach(function processNamespace([type, spec, data]) {
-+        debug('add namespace: ' + type + ' - ' + spec + ' - ' + data + '\n');
-+        array.appendElement(new Namespace(type, spec, data), false);
-+      });
-+      applicationCache.addNamespaces(array);
-+
-+      storeCache(applicationCache, appcacheURL, cacheManifest,
-+                 nsIApplicationCache.ITEM_MANIFEST);
-     });
--
--    let array = new MutableArray();
--    entries.namespaces.forEach(function processNamespace([type, spec, data]) {
--      debug('add namespace: ' + type + ' - ' + spec + ' - ' + data + '\n');
--      array.appendElement(new Namespace(type, spec, data), false);
--    });
--    applicationCache.addNamespaces(array);
--
--    storeCache(applicationCache, appcacheURL, cacheManifest,
--               nsIApplicationCache.ITEM_MANIFEST);
-   });
- }
- 
- 
- // Public API
- 
- this.OfflineCacheInstaller = {
-   installCache: installCache
 diff --git a/dom/apps/PermissionsTable.jsm b/dom/apps/PermissionsTable.jsm
 --- a/dom/apps/PermissionsTable.jsm
 +++ b/dom/apps/PermissionsTable.jsm
@@ -1286,7 +1089,7 @@ diff --git a/netwerk/cache/nsICacheEntryDescriptor.idl b/netwerk/cache/nsICacheE
 diff --git a/netwerk/cache2/CacheEntry.cpp b/netwerk/cache2/CacheEntry.cpp
 --- a/netwerk/cache2/CacheEntry.cpp
 +++ b/netwerk/cache2/CacheEntry.cpp
-@@ -1016,16 +1016,36 @@ NS_IMETHODIMP CacheEntry::SetExpirationT
+@@ -1026,16 +1026,36 @@ NS_IMETHODIMP CacheEntry::SetExpirationT
    nsresult rv = mFile->SetExpirationTime(aExpirationTime);
    NS_ENSURE_SUCCESS(rv, rv);
  
