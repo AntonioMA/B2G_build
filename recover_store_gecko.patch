@@ -1,9 +1,7 @@
 # HG changeset patch
-# Parent 3e66b65da220dc1643571c66991938d5c234da91
+# Parent a35163f83d22a34de0d34bda0f656b1ce57b9c41
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
-* * *
-Bug 1144689 - Allow setting manually a fetch time and modified time for cache entries
 
 diff --git a/b2g/app/b2g.js b/b2g/app/b2g.js
 --- a/b2g/app/b2g.js
@@ -40,6 +38,7 @@ diff --git a/b2g/confvars.sh b/b2g/confvars.sh
  MOZ_TIME_MANAGER=1
  
 +MOZ_B2G_CERTDATA=1
+ MOZ_SIMPLEPUSH=1
  MOZ_PAY=1
  MOZ_TOOLKIT_SEARCH=
  MOZ_PLACES=
@@ -47,7 +46,6 @@ diff --git a/b2g/confvars.sh b/b2g/confvars.sh
  
  if test "$OS_TARGET" = "Android"; then
  MOZ_NUWA_PROCESS=1
- MOZ_B2G_LOADER=1
 diff --git a/config/external/nss/Makefile.in b/config/external/nss/Makefile.in
 --- a/config/external/nss/Makefile.in
 +++ b/config/external/nss/Makefile.in
@@ -697,13 +695,13 @@ new file mode 100644
 diff --git a/configure.in b/configure.in
 --- a/configure.in
 +++ b/configure.in
-@@ -7521,16 +7521,25 @@ MOZ_ARG_ENABLE_BOOL(b2g-camera,
-     MOZ_B2G_CAMERA=1,
-     MOZ_B2G_CAMERA= )
- if test -n "$MOZ_B2G_CAMERA"; then
-    AC_DEFINE(MOZ_B2G_CAMERA)
+@@ -7540,16 +7540,25 @@ dnl = Enable Support for SimplePush (Gon
+ dnl   This will disable the Push API.
+ dnl ========================================================
+ if test -n "$MOZ_SIMPLEPUSH"; then
+     AC_DEFINE(MOZ_SIMPLEPUSH)
  fi
- AC_SUBST(MOZ_B2G_CAMERA)
+ AC_SUBST(MOZ_SIMPLEPUSH)
  
  dnl ========================================================
 +dnl = Enable Support B2G-specific changes to the NSS
@@ -723,32 +721,6 @@ diff --git a/configure.in b/configure.in
  AC_SUBST(MOZ_PAY)
  
  dnl ========================================================
-diff --git a/dom/apps/InterAppCommService.jsm b/dom/apps/InterAppCommService.jsm
---- a/dom/apps/InterAppCommService.jsm
-+++ b/dom/apps/InterAppCommService.jsm
-@@ -338,20 +338,20 @@ this.InterAppCommService = {
-   },
- 
-   _matchRules: function(aPubAppManifestURL, aPubRules,
-                         aSubAppManifestURL, aSubRules) {
-     let pubApp = appsService.getAppByManifestURL(aPubAppManifestURL);
-     let subApp = appsService.getAppByManifestURL(aSubAppManifestURL);
- 
-     let isPubAppCertified =
--      (pubApp.appStatus == Ci.nsIPrincipal.APP_STATUS_CERTIFIED);
-+      (pubApp.appStatus == Ci.nsIPrincipal.APP_STATUS_CERTIFIED || true);
- 
-     let isSubAppCertified =
--      (subApp.appStatus == Ci.nsIPrincipal.APP_STATUS_CERTIFIED);
-+      (subApp.appStatus == Ci.nsIPrincipal.APP_STATUS_CERTIFIED || true);
- 
-     // TODO Bug 907068 In the initiative step, we only expose this API to
-     // certified apps to meet the time line. Eventually, we need to make
-     // it available for the non-certified apps as well. For now, only the
-     // certified apps can match the rules.
-     if (!isPubAppCertified || !isSubAppCertified) {
-       if (DEBUG) {
-         debug("Only certified apps are allowed to do connections.");
 diff --git a/dom/apps/PermissionsTable.jsm b/dom/apps/PermissionsTable.jsm
 --- a/dom/apps/PermissionsTable.jsm
 +++ b/dom/apps/PermissionsTable.jsm
@@ -919,26 +891,7 @@ diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUti
  
        if (!isValid) {
          debug("White list doesn't contain all required directives!");
-@@ -134,16 +143,18 @@ this.TrustedHostedAppsUtils = {
- 
-   /**
-    * Verify that the given csp is valid:
-    *  1. contains required directives "script-src" and "style-src"
-    *  2. required directives contain only "https" URLs
-    *  3. domains of the restricted sources exist in the CA pinning database
-    */
-   verifyCSPWhiteList: function(aCsp) {
-+    return true;
-+
-     let domainWhitelist = this.getCSPWhiteList(aCsp);
-     if (!domainWhitelist.valid) {
-       debug("TRUSTED_APPLICATION_WHITELIST_PARSING_FAILED");
-       return false;
-     }
- 
-     if (!domainWhitelist.list.every(aUrl => this.isHostPinned(aUrl))) {
-       debug("TRUSTED_APPLICATION_WHITELIST_VALIDATION_FAILED");
-@@ -196,17 +207,18 @@ this.TrustedHostedAppsUtils = {
+@@ -196,17 +205,18 @@ this.TrustedHostedAppsUtils = {
                   .getService(Ci.nsIX509CertDB);
      } catch (e) {
        debug("nsIX509CertDB error: " + e);
@@ -958,7 +911,7 @@ diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUti
                                                principal,
                                                null,      // aTriggeringPrincipal
                                                Ci.nsILoadInfo.SEC_NORMAL,
-@@ -278,12 +290,15 @@ this.TrustedHostedAppsUtils = {
+@@ -278,12 +288,15 @@ this.TrustedHostedAppsUtils = {
        if (!this.isHostPinned(aApp.manifestURL)) {
          reject("TRUSTED_APPLICATION_HOST_CERTIFICATE_INVALID");
          return;
@@ -1032,32 +985,7 @@ diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
      return Success;
    }
  
-diff --git a/security/apps/Makefile.in b/security/apps/Makefile.in
---- a/security/apps/Makefile.in
-+++ b/security/apps/Makefile.in
-@@ -16,18 +16,18 @@ marketplace-dev-public.inc: marketplace-
- 	$(PYTHON) $(GEN_CERT_HEADER) marketplaceDevPublicRoot $< > $@
- 
- marketplace-dev-reviewers.inc: marketplace-dev-reviewers.crt $(GEN_CERT_HEADER)
- 	$(PYTHON) $(GEN_CERT_HEADER) marketplaceDevReviewersRoot $< > $@
- 
- marketplace-stage.inc: marketplace-stage.crt $(GEN_CERT_HEADER)
- 	$(PYTHON) $(GEN_CERT_HEADER) marketplaceStageRoot $< > $@
- 
--ifeq ($(shell test -s trusted-app-public.der; echo $$?),0)
--TRUSTED_APP_PUBLIC=trusted-app-public.der
-+ifeq ($(shell test -s $(srcdir)/trusted-app-public.der; echo $$?),0)
-+TRUSTED_APP_PUBLIC=$(srcdir)/trusted-app-public.der
- else
- TRUSTED_APP_PUBLIC=
- endif
- 
- manifest-signing-root.inc: $(TRUSTED_APP_PUBLIC) $(GEN_CERT_HEADER)
- 	$(PYTHON) $(GEN_CERT_HEADER) trustedAppPublicRoot $(TRUSTED_APP_PUBLIC) > $@
- 
- manifest-signing-test-root.inc: $(TEST_SSL_PATH)trusted_ca1.der $(GEN_CERT_HEADER)
 diff --git a/security/apps/trusted-app-public.der b/security/apps/trusted-app-public.der
-new file mode 100644
 index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..6c270e5d0444b5da4f60586e514383e8a9ab9090
 GIT binary patch
 literal 874
