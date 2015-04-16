@@ -1,7 +1,9 @@
 # HG changeset patch
-# Parent a35163f83d22a34de0d34bda0f656b1ce57b9c41
+# Parent bccef8483ead847546618b190e5e9c8c2f9ccb6c
 # User Antonio M. Amaya <amac@tid.es>
 Recover TID store
+* * *
+Bug 1155245 - Set the app status correctly for hosted certified apps in developer mode
 
 diff --git a/b2g/app/b2g.js b/b2g/app/b2g.js
 --- a/b2g/app/b2g.js
@@ -928,6 +930,31 @@ diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUti
      });
    }
  };
+diff --git a/dom/apps/Webapps.jsm b/dom/apps/Webapps.jsm
+--- a/dom/apps/Webapps.jsm
++++ b/dom/apps/Webapps.jsm
+@@ -3102,16 +3102,21 @@ this.DOMApplicationRegistry = {
+     let appObject = this._cloneApp(aData, app, manifest, jsonManifest, id, localId);
+ 
+     this.webapps[id] = appObject;
+ 
+     // For package apps, the permissions are not in the mini-manifest, so
+     // don't update the permissions yet.
+     if (!aData.isPackage) {
+       if (supportUseCurrentProfile()) {
++        // Until now we were not setting correctly the appStatus for hosted apps, and that didn't matter because
++        // hosted apps couldn't be other than installed anyway. That's not true anymore...
++        if (Services.prefs.getBoolPref("dom.apps.developer_mode")) {
++          this.webapps[id].appStatus = AppsUtils.getAppManifestStatus(app.manifest);
++        }
+         PermissionsInstaller.installPermissions(
+           {
+             origin: appObject.origin,
+             manifestURL: appObject.manifestURL,
+             manifest: jsonManifest,
+             kind: appObject.kind
+           },
+           isReinstall,
 diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
 --- a/mobile/android/confvars.sh
 +++ b/mobile/android/confvars.sh
