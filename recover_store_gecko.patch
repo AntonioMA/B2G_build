@@ -726,7 +726,7 @@ diff --git a/configure.in b/configure.in
 diff --git a/dom/apps/PermissionsTable.jsm b/dom/apps/PermissionsTable.jsm
 --- a/dom/apps/PermissionsTable.jsm
 +++ b/dom/apps/PermissionsTable.jsm
-@@ -200,17 +200,17 @@ this.PermissionsTable =  { geolocation: 
+@@ -206,17 +206,17 @@ this.PermissionsTable =  { geolocation: {
                             phonenumberservice: {
                               app: DENY_ACTION,
                               trusted: DENY_ACTION,
@@ -745,7 +745,7 @@ diff --git a/dom/apps/PermissionsTable.jsm b/dom/apps/PermissionsTable.jsm
                               trusted: DENY_ACTION,
                               privileged: DENY_ACTION,
                               certified: ALLOW_ACTION
-@@ -333,17 +333,17 @@ this.PermissionsTable =  { geolocation: 
+@@ -339,17 +339,17 @@ this.PermissionsTable =  { geolocation: {
                             "audio-channel-notification": {
                               app: DENY_ACTION,
                               trusted: DENY_ACTION,
@@ -759,12 +759,12 @@ diff --git a/dom/apps/PermissionsTable.jsm b/dom/apps/PermissionsTable.jsm
                               privileged: ALLOW_ACTION,
                               certified: ALLOW_ACTION
                             },
-                            "audio-channel-telephony": {
+                            "audio-channel-system": {
                               app: DENY_ACTION,
                               trusted: DENY_ACTION,
-                              privileged: DENY_ACTION,
+                              privileged: ALLOW_ACTION,
                               certified: ALLOW_ACTION
-@@ -431,17 +431,17 @@ this.PermissionsTable =  { geolocation: 
+@@ -443,17 +443,17 @@ this.PermissionsTable =  { geolocation: {
                             "nfc-hci-events": {
                               app: DENY_ACTION,
                               trusted: DENY_ACTION,
@@ -783,7 +783,7 @@ diff --git a/dom/apps/PermissionsTable.jsm b/dom/apps/PermissionsTable.jsm
                               trusted: DENY_ACTION,
                               privileged: DENY_ACTION,
                               certified: ALLOW_ACTION
-@@ -488,16 +488,40 @@ this.PermissionsTable =  { geolocation: 
+@@ -500,16 +500,40 @@ this.PermissionsTable =  { geolocation: {
                               substitute: ["firefox-accounts"]
                               },
                             "themeable": {
@@ -827,7 +827,7 @@ diff --git a/dom/apps/PermissionsTable.jsm b/dom/apps/PermissionsTable.jsm
 diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUtils.jsm
 --- a/dom/apps/TrustedHostedAppsUtils.jsm
 +++ b/dom/apps/TrustedHostedAppsUtils.jsm
-@@ -42,16 +42,19 @@ let debug = Services.prefs.getBoolPref("
+@@ -42,16 +42,19 @@ let debug = Services.prefs.getBoolPref("dom.mozApps.debug") ?
   * Verification functions for Trusted Hosted Apps.
   */
  this.TrustedHostedAppsUtils = {
@@ -906,14 +906,14 @@ diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUti
 +                          Services.io.newURI(aApp.origin, null, null),
 +                          aApp.localId, false);
  
-     let mRequestChannel = NetUtil.newChannel2(aApp.manifestURL,
-                                               null,
-                                               null,
-                                               null,      // aLoadingNode
-                                               principal,
-                                               null,      // aTriggeringPrincipal
-                                               Ci.nsILoadInfo.SEC_NORMAL,
-@@ -278,12 +288,15 @@ this.TrustedHostedAppsUtils = {
+     let mRequestChannel = NetUtil.newChannel({
+       uri: aApp.manifestURL,
+       loadingPrincipal: principal,
+       contentPolicyType: Ci.nsIContentPolicy.TYPE_OTHER}
+     ).QueryInterface(Ci.nsIHttpChannel);
+     mRequestChannel.loadFlags |= Ci.nsIRequest.INHIBIT_CACHING;
+     mRequestChannel.notificationCallbacks =
+@@ -270,12 +280,15 @@ this.TrustedHostedAppsUtils = {
        if (!this.isHostPinned(aApp.manifestURL)) {
          reject("TRUSTED_APPLICATION_HOST_CERTIFICATE_INVALID");
          return;
@@ -930,36 +930,11 @@ diff --git a/dom/apps/TrustedHostedAppsUtils.jsm b/dom/apps/TrustedHostedAppsUti
      });
    }
  };
-diff --git a/dom/apps/Webapps.jsm b/dom/apps/Webapps.jsm
---- a/dom/apps/Webapps.jsm
-+++ b/dom/apps/Webapps.jsm
-@@ -3102,16 +3102,21 @@ this.DOMApplicationRegistry = {
-     let appObject = this._cloneApp(aData, app, manifest, jsonManifest, id, localId);
- 
-     this.webapps[id] = appObject;
- 
-     // For package apps, the permissions are not in the mini-manifest, so
-     // don't update the permissions yet.
-     if (!aData.isPackage) {
-       if (supportUseCurrentProfile()) {
-+        // Until now we were not setting correctly the appStatus for hosted apps, and that didn't matter because
-+        // hosted apps couldn't be other than installed anyway. That's not true anymore...
-+        if (Services.prefs.getBoolPref("dom.apps.developer_mode")) {
-+          this.webapps[id].appStatus = AppsUtils.getAppManifestStatus(app.manifest);
-+        }
-         PermissionsInstaller.installPermissions(
-           {
-             origin: appObject.origin,
-             manifestURL: appObject.manifestURL,
-             manifest: jsonManifest,
-             kind: appObject.kind
-           },
-           isReinstall,
 diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
 --- a/mobile/android/confvars.sh
 +++ b/mobile/android/confvars.sh
-@@ -50,16 +50,19 @@ MOZ_APP_STATIC_INI=1
- MOZ_ENABLE_SZIP=1
+@@ -59,16 +59,19 @@ MOZ_ENABLE_SZIP=1
+ fi
  
  # Enable navigator.mozPay
  MOZ_PAY=1
@@ -975,7 +950,7 @@ diff --git a/mobile/android/confvars.sh b/mobile/android/confvars.sh
  
  # Enable second screen and casting support for external devices.
  MOZ_DEVICES=1
-
+ 
  # Enable second screen using native Android libraries, provided we're
  # not resource constrained.
 diff --git a/security/apps/AppTrustDomain.cpp b/security/apps/AppTrustDomain.cpp
