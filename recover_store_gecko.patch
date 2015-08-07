@@ -64,14 +64,14 @@ diff --git a/config/external/nss/Makefile.in b/config/external/nss/Makefile.in
 +include $(srcdir)/b2g-certdata.mk
 +endif
 +
+ ifdef MOZ_FOLD_LIBS_FLAGS
+ DEFAULT_GMAKE_FLAGS += XCFLAGS='$(MOZ_FOLD_LIBS_FLAGS)'
+ endif
+ 
  NSS_SRCDIR = $(topsrcdir)
  
  NSS_DIRS =
  ifndef MOZ_FOLD_LIBS
- NSS_DIRS += nss/lib
- else
- ifndef NSS_DISABLE_DBM
- NSS_DIRS += nss/lib/dbm
 diff --git a/config/external/nss/b2g-app-root-cert.der b/config/external/nss/b2g-app-root-cert.der
 new file mode 100644
 index e69de29bb2d1d6434b8b29ae775ad8c2e48c5391..85c2fed92a963b2ff51ee92165d6ed59fa70aeff
