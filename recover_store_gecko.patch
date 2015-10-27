@@ -8,22 +8,22 @@ Bug 1155245 - Set the app status correctly for hosted certified apps in develope
 diff --git a/b2g/confvars.sh b/b2g/confvars.sh
 --- a/b2g/confvars.sh
 +++ b/b2g/confvars.sh
-@@ -46,16 +46,17 @@ MOZ_XULRUNNER=
- fi
- 
+@@ -47,16 +47,17 @@ MOZ_USE_NATIVE_POPUP_WINDOWS=1
+ MOZ_XULRUNNER=
+
  MOZ_MEDIA_NAVIGATOR=1
- 
+
  MOZ_APP_ID={3c2e2abc-06d4-11e1-ac3b-374f68613e61}
- 
+
  MOZ_TIME_MANAGER=1
- 
+
 +MOZ_B2G_CERTDATA=1
  MOZ_SIMPLEPUSH=1
  MOZ_PAY=1
  MOZ_TOOLKIT_SEARCH=
  MOZ_PLACES=
  MOZ_B2G=1
- 
+
  if test "$OS_TARGET" = "Android"; then
  MOZ_NUWA_PROCESS=1
 diff --git a/config/external/nss/Makefile.in b/config/external/nss/Makefile.in
